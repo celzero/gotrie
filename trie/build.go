@@ -7,7 +7,7 @@ import "bytes"
 import "encoding/binary"
 import "strconv"
 import "strings"
-
+import "encoding/json"
 var Debug = false
 var RD = RankDirectory{}
 var FT = FrozenTrie{}
@@ -18,20 +18,21 @@ var W = 16
 var L1 = 32*32;
 var L2 = 32;
 var NodeCount *int;
-func Build()(error,FrozenTrie){
+func Build(tdpath,rdpath,bcpath,ftpath string)(error,FrozenTrie){
 	var err error;
-	TD_buf,err = read_file_u16("./td.txt")
+	Blacklistconfigjson = string(ftpath)
+	TD_buf,err = read_file_u16(tdpath)
 	if(err != nil) {
 		fmt.Println(err)
 		return err,FT
 	}
-	RD_buf,err = read_file_u16("./rd.txt")
+	RD_buf,err = read_file_u16(rdpath)
 	if(err != nil) {
 		fmt.Println(err)
 		return err,FT
 	}
 
-	NodeCount,err = Read_nodecount("./node.txt")
+	NodeCount,err = LoadNodecount_BasicConfig(bcpath)
 	if(err != nil) {
 		fmt.Println(err)
 		return err,FT
@@ -43,7 +44,7 @@ func Build()(error,FrozenTrie){
 	//RD.display()
 	FT.Init(TD_buf,RD,*NodeCount)
 	FT.LoadTag()
-
+	//LoadNodecount_BasicConfig("./basicconfig.json")
 
 	
 	/*
@@ -94,5 +95,23 @@ func Read_nodecount(path string)(*int,error){
 	fmt.Println("file read successful : "+ path)
 	fmt.Println("node count : ",nodecount)
 
+	return &nodecount,err
+}
+
+func LoadNodecount_BasicConfig(filepath string)(*int,error){
+	data, err := ioutil.ReadFile(filepath)
+    if err != nil {
+	  fmt.Print(err)
+	  return nil,err
+	}
+	
+	var obj map[string]interface{}
+	err = json.Unmarshal(data, &obj)
+    if err != nil {
+		fmt.Println("error:", err)
+		return nil,err
+	}
+	var nodecount = int(obj["nodecount"].(float64))
+	
 	return &nodecount,err
 }

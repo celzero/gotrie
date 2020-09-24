@@ -1,19 +1,24 @@
 package main
 import "./trie"
 import "fmt"
-import "time"
-import "os"
-import "bufio"
-import "strings"
+//import "time"
+//import "os"
+//import "bufio"
+//import "strings"
 
 
 func main()  {
 	
 
-	err,FT := trie.Build()
+	err,FT := trie.Build("./td.txt","./rd.txt","./basicconfig.json","./filetag.json")
 	if(err == nil){
-		res := []string{"DAH","ADH","BXW", "BQJ"}
-		usr_flag := FT.CreateUrlEncodedflag(res)
+		//[33216 32768 8192 256 4]
+		//6IeA6ICA4oCAxIAE
+		//res := []string{"AMI","CQT","EOK","MTF"}		
+		//usr_flag := FT.CreateUrlEncodedflag(res)
+		//fmt.Println(usr_flag)
+		fmt.Println(FT.Urlenc_to_flag("w4DEgAQ="))
+		/*
 		for{
 			reader := bufio.NewReader(os.Stdin)
 			fmt.Print("Enter text: ")
@@ -24,7 +29,7 @@ func main()  {
 			fmt.Println(FT.DNlookup(text,usr_flag))
 			elapsed := time.Since(start)
 			fmt.Printf("Time Diff %s\n",elapsed)
-		}
+		}*/
 	}else{
 		fmt.Println("Error at trie Build")
 	}

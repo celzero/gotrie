@@ -409,8 +409,8 @@ func (FT FrozenTrie) CreateUrlEncodedflag(fl []string)(string){
 		//fmt.Println("Index : ",index)
 		//fmt.Println("Pos : ",pos)
 	}
-	//temp := Flag_to_uint(res)
-	//fmt.Println(temp)
+	temp := Flag_to_uint(res)
+	fmt.Println(temp)
 	//fmt.Println(FT.FlagstoTag(temp))
 	//fmt.Println("base 64 encode string :",b64.StdEncoding.EncodeToString([]byte(res)))
 	//fmt.Println("url encode string :" ,url.QueryEscape(b64.StdEncoding.EncodeToString([]byte(res))))

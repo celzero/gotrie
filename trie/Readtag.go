@@ -85,7 +85,7 @@ func CheckDN1(){
 	//usr_flag := FT.CreateUrlEncodedflag(res)
 
 	var files []string
-	err,FT := Build()
+	err,FT := Build("./td.txt","./rd.txt","./basicconfig.json","./filetag.json")
 	if(err == nil){
 		//res := []string{"DAH","ADH","BXW", "BQJ"}
 		//fmt.Println("Base64 to flag : ",FT.Urlenc_to_flag(FT.CreateUrlEncodedflag(res)))
