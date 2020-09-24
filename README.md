@@ -1,5 +1,4 @@
 # gotrie
-example
 
 ## Build FrozenTrie
 
