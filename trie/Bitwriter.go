@@ -2,13 +2,12 @@ package trie
 
 //import "fmt"
 
-type Bitwriter struct{
-	bits []byte
-	bytes []byte
+type Bitwriter struct {
+	bits   []byte
+	bytes  []byte
 	bits16 []byte
-	Top int32
+	Top    int32
 }
-
 
 /*
 func (wr *Bitwriter) Write16(data int16, numBits int16) {
@@ -20,9 +19,9 @@ func (wr *Bitwriter) Write16(data int16, numBits int16) {
 	n := data;
 	brim := int16(16 - (wr.Top % 16));
 	cur := int16((wr.Top / 16) | 0);
-	e := wr.bits16[cur] | 0;   
+	e := wr.bits16[cur] | 0;
 	remainingBits := int16(0);
-	// clear msb 
+	// clear msb
 	b := n & BitString.MaskTop[16][16 - numBits];
 
 	// shift to bit pos to be right at brim-th bit
