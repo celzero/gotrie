@@ -1,6 +1,6 @@
 package main
 
-import "./trie"
+import "github.com/celzero/gotrie/trie"
 import "fmt"
 
 //import "time"
