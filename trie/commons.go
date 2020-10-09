@@ -114,7 +114,7 @@ func Find_Lista_Listb(list1 []string, list2 []string) (bool, []string) {
         }
     }
 
-    fmt.Println("usr list : ", list1)
-    fmt.Println("list 2 : ", list2)
+    // fmt.Println("usr list : ", list1)
+    // fmt.Println("list 2 : ", list2)
     return found, retlist
 }

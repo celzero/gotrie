@@ -8,6 +8,7 @@ import (
     "io/ioutil"
     "net/url"
     "strings"
+    "encoding/binary"
 )
 
 type FrozenTrie struct {
@@ -30,6 +31,14 @@ type FrozenTrie struct {
 
     usr_flag string
     usr_bl   []string
+}
+
+func (f *FrozenTrie) GetData() BS {
+    return f.data
+}
+
+func (f *FrozenTrie) GetDir() RankDirectory {
+    return f.directory
 }
 
 func (FT *FrozenTrie) Init(trieData []uint16, rdir RankDirectory, nodeCount int) {
@@ -62,17 +71,17 @@ func (FT *FrozenTrie) Init(trieData []uint16, rdir RankDirectory, nodeCount int)
     FT.usr_bl = []string{}
 }
 
-func (FT FrozenTrie) getNodeByIndex(index int) FrozenTrieNode {
+func (FT *FrozenTrie) getNodeByIndex(index int) FrozenTrieNode {
     FTN := FrozenTrieNode{}
     FTN.Init(FT, index)
     return FTN
 }
 
-func (FT FrozenTrie) getRoot() FrozenTrieNode {
+func (FT *FrozenTrie) getRoot() FrozenTrieNode {
     return FT.getNodeByIndex(0)
 }
 
-func (FT FrozenTrie) lookup(word []uint8) (bool, []uint32) {
+func (FT *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
     var node = FT.getRoot()
     var emptyreturn []uint32
 
@@ -260,7 +269,7 @@ func (FT *FrozenTrie) LoadTag() error {
     return nil
 }
 
-func (FT FrozenTrie) FlagstoTag(flags []uint32) []string {
+func (FT *FrozenTrie) FlagstoTag(flags []uint32) []string {
     // flags has to be an array of 16-bit integers.
     header := uint16(flags[0])
     tagIndices := []int{}
@@ -309,8 +318,20 @@ func (FT *FrozenTrie) DNlookup(dn string, usr_flag string) (bool, []string) {
 
     if FT.usr_flag == "" || FT.usr_flag != usr_flag {
         //fmt.Println("User config saved : ")
+        var blocklists []string
+        var err error
+        s := strings.Split(usr_flag, ":")
+        if len(s) > 1 {
+            blocklists, err = FT.decode(s[1], s[0])
+        } else {
+            blocklists, err = FT.decode(usr_flag, "0")
+        }
+        if (err != nil) {
+            fmt.Println(err, s)
+            return false, nil
+        }
+        FT.usr_bl = blocklists
         FT.usr_flag = usr_flag
-        FT.usr_bl = FT.Urlenc_to_flag(FT.usr_flag)
     }
 
     dn = strings.TrimSpace(dn)
@@ -362,7 +383,7 @@ func (FT *FrozenTrie) DNlookup(dn string, usr_flag string) (bool, []string) {
     }
 }
 
-func (FT FrozenTrie) CreateUrlEncodedflag(fl []string) string {
+func (FT *FrozenTrie) CreateUrlEncodedflag(fl []string) string {
     var val = 0
     var res = ""
     for _, flag := range fl {
@@ -418,9 +439,118 @@ func (FT FrozenTrie) CreateUrlEncodedflag(fl []string) string {
     return url.QueryEscape(b64.StdEncoding.EncodeToString([]byte(res)))
 }
 
-func (FT FrozenTrie) Urlenc_to_flag(str string) []string {
+func (FT *FrozenTrie) Urlenc_to_flag(str string) []string {
     str, _ = url.QueryUnescape(str)
     buf, _ := b64.StdEncoding.DecodeString(str)
     str = string(buf)
     return FT.FlagstoTag(Flag_to_uint(str))
 }
+
+func (FT *FrozenTrie) decode(stamp string, ver string) (tags []string, err error) {
+    decoder := b64.StdEncoding
+    if (ver == "0") {
+        stamp, err = url.QueryUnescape(stamp)
+    } else if (ver == "1") {
+        stamp, err = url.PathUnescape(stamp)
+        decoder = b64.URLEncoding
+    } else {
+        err = fmt.Errorf("version does not exist", ver)
+    }
+
+    if err != nil {
+        return nil, err
+    }
+
+    buf, err := decoder.DecodeString(stamp)
+    if err != nil {
+        fmt.Println("b64", stamp)
+        return
+    }
+
+    var u16 []uint16
+    if ver == "0" {
+        u16 = stringtouint(string(buf))
+    } else if ver == "1" {
+        u16 = bytestouint(buf)
+    }
+    fmt.Println("%s %v", ver, u16)
+    return FT.flagstotag(u16)
+}
+
+func (ft *FrozenTrie) flagstotag(flags []uint16) ([]string, error) {
+    // flags has to be an array of 16-bit integers.
+
+    // first index always contains the header
+    header := uint16(flags[0])
+    // store of each big-endian position of set bits in header
+    tagIndices := []int{}
+    values := []string{}
+    var mask uint16
+
+    // b1000,0000,0000,0000
+    mask = 0x8000
+
+    // read first 16 header bits from msb to lsb
+    // and capture indices of set bits in tagIndices
+    for i := 0; i < 16; i++ {
+        if (header << i) == 0 {
+            break
+        }
+        if (header & mask) == mask {
+            tagIndices = append(tagIndices, i)
+        }
+        mask = mask >> 1 // shift to read the next msb bit
+    }
+    // the number of set bits in header must correspond to total
+    // blocklist "flags" excluding the header at position 0
+    if len(tagIndices) != (len(flags) - 1) {
+        err := fmt.Errorf("%v %v flags and header mismatch", tagIndices, flags)
+        return nil, err
+    }
+
+    // for all blocklist flags excluding the header
+    // figure out the blocklist-ids
+    for i := 1; i < len(flags); i++ {
+        // 16 blocklists are represented by one flag
+        // that is, one bit per blocklist
+        var flag = uint16(flags[i])
+        // get the index of the current flag in the header
+        var index = tagIndices[i-1]
+        mask = 0x8000
+        // for each of the 16 bits in the flag
+        // capture the set bits and calculate
+        // its actual decimal value, the blocklist-id
+        for j := 0; j < 16; j++ {
+            if (flag << j) == 0 {
+                break
+            }
+            if (flag & mask) == mask {
+                pos := (index * 16) + j
+                // from the decimal value which is its
+                // blocklist-id, fetch its metadata
+                values = append(values, FT.rflags[pos])
+            }
+            mask = mask >> 1
+        }
+    }
+    return values, nil
+}
+
+func stringtouint(str string) []uint16 {
+    runedata := []rune(str)
+    resp := make([]uint16, len(runedata))
+    for key, value := range runedata {
+        resp[key] = uint16(value)
+    }
+    return resp
+}
+
+func bytestouint(b []byte) []uint16 {
+    data := make([]uint16, len(b)/2)
+    for i := range data {
+        // assuming little endian
+        data[i] = binary.LittleEndian.Uint16(b[i*2 : (i+1)*2])
+    }
+    return data
+}
+

@@ -3,7 +3,7 @@ package trie
 import "fmt"
 
 type FrozenTrieNode struct {
-    trie                             FrozenTrie
+    trie                             *FrozenTrie
     index                            int
     valCached                        *[]uint32
     finCached, comCached, flagCached *bool
@@ -11,7 +11,7 @@ type FrozenTrieNode struct {
     fcCached, chCached               *int
 }
 
-func (FTN *FrozenTrieNode) Init(FT FrozenTrie, index int) {
+func (FTN *FrozenTrieNode) Init(FT *FrozenTrie, index int) {
     FTN.trie = FT
     FTN.index = index
     if Debug {
