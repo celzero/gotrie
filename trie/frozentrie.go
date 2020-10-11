@@ -11,6 +11,69 @@ import (
     "encoding/binary"
 )
 
+var (
+    wildcardlists = map[string]struct{} {
+        "KBI" : struct{}{}, // safe-search-not-supported
+        "YWG" : struct{}{}, // nextdns dht-bootstrap-nodes
+        "SMQ" : struct{}{}, // nextdns file-hosting
+        "AQX" : struct{}{}, // nextdns proxies
+        "BTG" : struct{}{}, // nextdns streaming audio
+        "GUN" : struct{}{}, // nextdns streaming video
+        "KSH" : struct{}{}, // nextdns torrent clients
+        "WAS" : struct{}{}, // nextdns torrent trackers
+        "AZY" : struct{}{}, // nextdns torrent websites
+        "GWB" : struct{}{}, // nextdns usenet
+        "YMG" : struct{}{}, // nextdns warez
+        "CZM" : struct{}{}, // tiuxo porn
+        "ZVO" : struct{}{}, // oblat social-networks
+        "YOM" : struct{}{}, // 9gag srv
+        "THR" : struct{}{}, // amazon srv
+        "RPW" : struct{}{}, // blizzard srv
+        "AMG" : struct{}{}, // dailymotion srv
+        "WTJ" : struct{}{}, // discord srv
+        "ZXU" : struct{}{}, // disney+ srv
+        "FJG" : struct{}{}, // ebay srv
+        "NYS" : struct{}{}, // facebook srv
+        "OKG" : struct{}{}, // fortnite srv
+        "KNP" : struct{}{}, // hulu srv
+        "FLI" : struct{}{}, // imgur srv
+        "RYX" : struct{}{}, // instagram srv
+        "CIH" : struct{}{}, // leagueoflegends srv
+        "PTE" : struct{}{}, // messenger srv
+        "KEA" : struct{}{}, // minecraft srv
+        "CMR" : struct{}{}, // netflix srv
+        "DDO" : struct{}{}, // pinterest srv
+        "VLM" : struct{}{}, // reddit srv
+        "JEH" : struct{}{}, // roblox srv
+        "XLX" : struct{}{}, // skype srv
+        "OQW" : struct{}{}, // snapchat srv
+        "FXC" : struct{}{}, // spotify srv
+        "HZJ" : struct{}{}, // steam srv
+        "SWK" : struct{}{}, // telegram srv
+        "VAM" : struct{}{}, // tiktok srv
+        "AOS" : struct{}{}, // tinder srv
+        "FAL" : struct{}{}, // tumblr srv
+        "CZK" : struct{}{}, // twitch srv
+        "FZB" : struct{}{}, // twitter srv
+        "PYW" : struct{}{}, // vimeo srv
+        "JXA" : struct{}{}, // vk srv
+        "KOR" : struct{}{}, // whatsapp srv
+        "DEP" : struct{}{}, // youtube srv
+        "RFX" : struct{}{}, // zoom srv
+        "RAF" : struct{}{}, // parked-domains
+        "RKG" : struct{}{}, // infosec.cert-pa.it
+        "GLV" : struct{}{}, // covid malware sophos labs
+        "FHW" : struct{}{}, // alexa native
+        "AGZ" : struct{}{}, // apple native
+        "IVN" : struct{}{}, // huawei native
+        "FIB" : struct{}{}, // roku native
+        "FGF" : struct{}{}, // samsung native
+        "FLL" : struct{}{}, // sonos native
+        "IVO" : struct{}{}, // windows native
+        "ALQ" : struct{}{}, // xiaomi native
+    }
+)
+
 type FrozenTrie struct {
     data                BS
     directory           RankDirectory
@@ -29,8 +92,9 @@ type FrozenTrie struct {
     blimt               int
     flimt               int
 
-    usr_flag string
-    usr_bl   []string
+    usr_flag            string
+    usr_bl              []string
+    wildcardlookup      bool
 }
 
 func (f *FrozenTrie) GetData() BS {
@@ -69,6 +133,7 @@ func (FT *FrozenTrie) Init(trieData []uint16, rdir RankDirectory, nodeCount int)
 
     FT.usr_flag = ""
     FT.usr_bl = []string{}
+    FT.wildcardlookup = false
 }
 
 func (FT *FrozenTrie) getNodeByIndex(index int) FrozenTrieNode {
@@ -332,7 +397,31 @@ func (FT *FrozenTrie) DNlookup(dn string, usr_flag string) (bool, []string) {
         }
         FT.usr_bl = blocklists
         FT.usr_flag = usr_flag
+        FT.wildcardlookup = wildcardEligibility(FT.usr_bl)
     }
+
+    block, lists := FT.lookupDomain(dn)
+
+    if (block || !FT.wildcardlookup) {
+        return block, lists
+    }
+
+    alldomains := subdomains(dn)
+
+    for _, d := range alldomains {
+        block, lists = FT.lookupDomain(d)
+        if (block == true && wildcardEligibility(lists) == true) {
+            break
+        } else {
+            block = false
+            lists = []string{}
+        }
+    }
+
+    return block, lists
+}
+
+func (FT *FrozenTrie) lookupDomain(dn string) (bool, []string) {
 
     dn = strings.TrimSpace(dn)
     bvalue := FT.bcache.Get(dn)
@@ -536,6 +625,16 @@ func (ft *FrozenTrie) flagstotag(flags []uint16) ([]string, error) {
     return values, nil
 }
 
+func wildcardEligibility(blocklistIds []string) bool {
+    // true if any user selected blocklist is in wildcard-lists
+    for _, b := range blocklistIds {
+        if _, ok := wildcardlists[b]; ok {
+            return true
+        }
+    }
+    return false
+}
+
 func stringtouint(str string) []uint16 {
     runedata := []rune(str)
     resp := make([]uint16, len(runedata))
@@ -552,5 +651,17 @@ func bytestouint(b []byte) []uint16 {
         data[i] = binary.LittleEndian.Uint16(b[i*2 : (i+1)*2])
     }
     return data
+}
+
+
+func subdomains(target string) []string {
+    c := strings.Count(target, ".")
+    l := []string{}
+    for i := 0; i < c - 1; i++ {
+        s := strings.Index(target, ".") + 1
+        target = target[s:]
+        l = append(l, target)
+    }
+    return l
 }
 

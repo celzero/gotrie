@@ -28,13 +28,21 @@ func main() {
         fmt.Print("1: v1<>google.com ")
         fmt.Println(FT.DNlookup("google.com", "6IeA6ICA4oCAxIAE"))
 
+        // version 0: all blocklists
         t := "77%2Bg77%2B%2F77%2B%2F77%2B%2F77%2B%2F77%2B%2F77%2B%2F77%2B%2F77%2B%2F77%2B%2F77%2B%2F77%2Bg"
         fmt.Print("2: v1<>amazon.com ")
         fmt.Println(FT.DNlookup("amazon.com", t))
 
+        // version 1: all blocklists
         l := "1:4P___________________________-D_"
         fmt.Print("3: v2<>amazon.com ")
         fmt.Println(FT.DNlookup("amazon.com", l))
+        // version 1: services and native wildcard blocklists
+        n := "1:IHD_D___APzAPw=="
+        fmt.Println(FT.DNlookup("twitch.tv", n))
+        fmt.Println(FT.DNlookup("rubbish.twitch.tv", n))
+        fmt.Println(FT.DNlookup("twitter.com", n))
+        fmt.Println(FT.DNlookup("block.what.ever.twitter.com", n))
 
         PrintMemUsage()
 
