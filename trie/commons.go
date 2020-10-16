@@ -104,8 +104,20 @@ func TxtEncode(str string) ([]uint8, error) {
 
 func Find_Lista_Listb(list1 []string, list2 []string) (bool, []string) {
     retlist := []string{}
+    if (len(list1) <= 0 || len(list2) <= 0) {
+        // fmt.Printf("return false and empty retlist\n")
+        return false, retlist
+    }
+    //fmt.Printf("----list len %d %d\n",len(list1), len(list2))
+
     found := false
     for _, value := range list1 {
+        // FIXME: FT.usr_bl can contain empty strings and that
+        // shoudln't be matched at all. But then again commons
+        // isn't the place to account for such edge-cases.
+        if len(value) <= 0 {
+            continue
+        }
         for _, ivalue := range list2 {
             if value == ivalue {
                 found = true

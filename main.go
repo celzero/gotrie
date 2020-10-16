@@ -25,24 +25,33 @@ func main() {
         fmt.Println(usr_flag)
         fmt.Println(FT.Urlenc_to_flag("w4DEgAQ="))
 
-        fmt.Print("1: v1<>google.com ")
+        fmt.Print("1: v1<>google.com (ex:false) ")
         fmt.Println(FT.DNlookup("google.com", "6IeA6ICA4oCAxIAE"))
 
         // version 0: all blocklists
         t := "77%2Bg77%2B%2F77%2B%2F77%2B%2F77%2B%2F77%2B%2F77%2B%2F77%2B%2F77%2B%2F77%2B%2F77%2B%2F77%2Bg"
-        fmt.Print("2: v1<>amazon.com ")
+        fmt.Print("2: v1<>amazon.com (ex:true) ")
         fmt.Println(FT.DNlookup("amazon.com", t))
 
         // version 1: all blocklists
         l := "1:4P___________________________-D_"
-        fmt.Print("3: v2<>amazon.com ")
+        fmt.Print("3: v2<>amazon.com (ex: true) ")
         fmt.Println(FT.DNlookup("amazon.com", l))
         // version 1: services and native wildcard blocklists
         n := "1:IHD_D___APzAPw=="
+        fmt.Print("4: v2<>twitch.tv (ex:true) ")
         fmt.Println(FT.DNlookup("twitch.tv", n))
+        fmt.Print("5: v2<>rubbish.twitch.tv (ex:true) ")
         fmt.Println(FT.DNlookup("rubbish.twitch.tv", n))
+        fmt.Print("6: v2<>twitter.com (ex:true) ")
         fmt.Println(FT.DNlookup("twitter.com", n))
+        fmt.Print("7: v2<>block.what.ever.twitter.com (ex:true) ")
         fmt.Println(FT.DNlookup("block.what.ever.twitter.com", n))
+        fmt.Print("8: v2<>www.aws.amazon.com (ex:true) ")
+        fmt.Println(FT.DNlookup("www.aws.amazon.com", n)) // true
+
+        fmt.Print("8: v2<>amazon.com (ex:false) ")
+        fmt.Println(FT.DNlookup("amazon.com", "1:AIAAwA==")) // false
 
         PrintMemUsage()
 

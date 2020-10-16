@@ -318,11 +318,15 @@ func (FT *FrozenTrie) LoadTag() error {
 
     var obj map[string]interface{}
     err = json.Unmarshal(data, &obj)
+    if len(obj) <= 0 {
+        err = fmt.Errorf("zero len blocklist json")
+    }
     if err != nil {
         fmt.Println("error:", err)
         return err
     }
-    FT.rflags = make([]string, len(obj))
+    // FIXME: Change type(rflags) to map
+    FT.rflags = make([]string, len(obj)+1)
     for key, _ := range obj {
         indata := obj[key].(map[string]interface{})
         var index = int(indata["value"].(float64))
@@ -335,10 +339,13 @@ func (FT *FrozenTrie) LoadTag() error {
 }
 
 func (FT *FrozenTrie) FlagstoTag(flags []uint32) []string {
+    values := []string{}
+    if len(FT.rflags) <= 0 {
+        return values
+    }
     // flags has to be an array of 16-bit integers.
     header := uint16(flags[0])
     tagIndices := []int{}
-    values := []string{}
     var mask uint16
     mask = 0x8000
     //fmt.Println(FT.rflags)
@@ -370,8 +377,16 @@ func (FT *FrozenTrie) FlagstoTag(flags []uint32) []string {
                 if Debug {
                     fmt.Printf("pos %d  index/tagIndices %d %v j/i %d %d\n", pos, index, tagIndices, j, i)
                 }
-                //console.log("pos " , pos, "index/tagIndices", index, tagIndices, "j/i", j , i);
-                values = append(values, FT.rflags[pos])
+                if pos >= len(FT.rflags) {
+                    if Debug {
+                        fmt.Printf("pos %d out of bounds in len(rflags) %d\n", pos, len(FT.rflags))
+                    }
+                } else {
+                    v := FT.rflags[pos]
+                    if (len(v) > 0) {
+                        values = append(values, FT.rflags[pos])
+                    }
+                }
             }
             mask = mask >> 1
         }
@@ -393,6 +408,8 @@ func (FT *FrozenTrie) DNlookup(dn string, usr_flag string) (bool, []string) {
         }
         if (err != nil) {
             fmt.Println(err, s)
+            FT.usr_flag = ""
+            FT.usr_bl = nil
             return false, nil
         }
         FT.usr_bl = blocklists
@@ -430,7 +447,7 @@ func (FT *FrozenTrie) lookupDomain(dn string) (bool, []string) {
     var retlist []string
     var found = false
     if bvalue != nil {
-        //fmt.Println("Return frm B-Cache : ")
+        // fmt.Printf("Return frm B-Cache : %s blacklist %s\n", blfname, FT.usr_bl)
         blfname = strings.Split(bvalue.(string), "-")
         found, retlist = Find_Lista_Listb(FT.usr_bl, blfname)
         return found, retlist
@@ -448,6 +465,7 @@ func (FT *FrozenTrie) lookupDomain(dn string) (bool, []string) {
     if status {
         tag = FT.FlagstoTag(arr)
 
+        //fmt.Printf("Return frm lookup and flagtotag : %d\n", len(tag))
         found, retlist = Find_Lista_Listb(FT.usr_bl, tag)
 
         if *FT.blen >= FT.blimt {
@@ -520,8 +538,8 @@ func (FT *FrozenTrie) CreateUrlEncodedflag(fl []string) string {
         //fmt.Println("Index : ",index)
         //fmt.Println("Pos : ",pos)
     }
-    temp := Flag_to_uint(res)
-    fmt.Println(temp)
+    //temp := Flag_to_uint(res)
+    //fmt.Println(temp)
     //fmt.Println(FT.FlagstoTag(temp))
     //fmt.Println("base 64 encode string :",b64.StdEncoding.EncodeToString([]byte(res)))
     //fmt.Println("url encode string :" ,url.QueryEscape(b64.StdEncoding.EncodeToString([]byte(res))))
@@ -552,7 +570,7 @@ func (FT *FrozenTrie) decode(stamp string, ver string) (tags []string, err error
 
     buf, err := decoder.DecodeString(stamp)
     if err != nil {
-        fmt.Println("b64", stamp)
+        //fmt.Println("b64", stamp)
         return
     }
 
@@ -562,7 +580,7 @@ func (FT *FrozenTrie) decode(stamp string, ver string) (tags []string, err error
     } else if ver == "1" {
         u16 = bytestouint(buf)
     }
-    fmt.Println("%s %v", ver, u16)
+    //fmt.Println("%s %v", ver, u16)
     return FT.flagstotag(u16)
 }
 
@@ -617,7 +635,13 @@ func (ft *FrozenTrie) flagstotag(flags []uint16) ([]string, error) {
                 pos := (index * 16) + j
                 // from the decimal value which is its
                 // blocklist-id, fetch its metadata
-                values = append(values, FT.rflags[pos])
+                if pos >= len(FT.rflags) {
+                    if Debug {
+                        fmt.Printf("pos %d out of bounds in len(rflags) %d\n", pos, len(FT.rflags))
+                    }
+                } else {
+                    values = append(values, FT.rflags[pos])
+                }
             }
             mask = mask >> 1
         }
@@ -626,6 +650,9 @@ func (ft *FrozenTrie) flagstotag(flags []uint16) ([]string, error) {
 }
 
 func wildcardEligibility(blocklistIds []string) bool {
+    if (len(blocklistIds) <= 0) {
+        return false
+    }
     // true if any user selected blocklist is in wildcard-lists
     for _, b := range blocklistIds {
         if _, ok := wildcardlists[b]; ok {

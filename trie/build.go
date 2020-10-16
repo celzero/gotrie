@@ -22,6 +22,8 @@ var L2 = 32
 var NodeCount *int
 
 func Build(tdpath, rdpath, bcpath, ftpath string) (error, FrozenTrie) {
+    // FIXME: add an integrity check for all four files which are
+    // dependant on each other and need to be from the same "generation"
     var err error
     Blacklistconfigjson = string(ftpath)
     TD_buf, err = read_file_u16(tdpath)
