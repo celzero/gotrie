@@ -83,7 +83,8 @@ type FrozenTrie struct {
     valuesStart         int
     valuesIndexLength   int
     valuesDirBitsLength int
-    rflags              []string
+    //rflags              []string
+    rflags              map[int]string
     fdata               map[string]interface{}
     bcache              *Cache
     blen                *int
@@ -128,7 +129,7 @@ func (FT *FrozenTrie) Init(trieData []uint16, rdir RankDirectory, nodeCount int)
     FT.flen = &b
     FT.blimt = 2500
     FT.flimt = 2500
-
+    FT.rflags = make(map[int]string)
     FT.fdata = make(map[string]interface{})
 
     FT.usr_flag = ""
@@ -326,7 +327,7 @@ func (FT *FrozenTrie) LoadTag() error {
         return err
     }
     // FIXME: Change type(rflags) to map
-    FT.rflags = make([]string, len(obj))
+    //FT.rflags = make([]string, len(obj)+1)
     for key, _ := range obj {
         indata := obj[key].(map[string]interface{})
         var index = int(indata["value"].(float64))
@@ -692,3 +693,6 @@ func subdomains(target string) []string {
     return l
 }
 
+func (FT *FrozenTrie) Lookup(word []uint8) (bool, []uint32){
+    return FT.lookup(word)
+}
