@@ -326,7 +326,7 @@ func (FT *FrozenTrie) LoadTag() error {
         return err
     }
     // FIXME: Change type(rflags) to map
-    FT.rflags = make([]string, len(obj)+1)
+    FT.rflags = make([]string, len(obj))
     for key, _ := range obj {
         indata := obj[key].(map[string]interface{})
         var index = int(indata["value"].(float64))
