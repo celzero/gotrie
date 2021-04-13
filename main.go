@@ -15,7 +15,21 @@ import (
 //import "strings"
 
 func main() {
+    mychannel := make(chan bool)
+    go loadbuild(mychannel)
+    go loadbuild(mychannel)
+    go loadbuild(mychannel)
+    go loadbuild(mychannel)
+    go loadbuild(mychannel)
+    <-mychannel
+    <-mychannel
+    <-mychannel
+    <-mychannel
+    <-mychannel
+}
 
+
+func loadbuild(mychannel chan bool){
     err, FT := trie.Build("./td", "./rank", "./basicconfig", "./blocklists")
     if err == nil {
         //[33216 32768 8192 256 4]
@@ -92,9 +106,8 @@ func main() {
         if err := pprof.WriteHeapProfile(f); err != nil {
             fmt.Println("could not write memory profile: ", err)
         }
-
+        mychannel <- true
 }
-
 func PrintMemUsage() {
         var m runtime.MemStats
         runtime.ReadMemStats(&m)

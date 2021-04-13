@@ -9,7 +9,7 @@ import (
     "strings"
 )
 
-func CheckDN() {
+func CheckDN(FT *FrozenTrie) {
     var a [1]string
     a[0] = "D:\\Celzero\\blocklist script\\blocklistfiles\\privacy\\MNH.txt"
     //a[0] = "D:\\Celzero\\blocklist script\\blocklistfiles\\privacy\\NLH.txt"

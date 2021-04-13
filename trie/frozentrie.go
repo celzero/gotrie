@@ -310,8 +310,8 @@ func (FT *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
     return false, emptyreturn
 }
 
-func (FT *FrozenTrie) LoadTag() error {
-    data, err := ioutil.ReadFile(Blacklistconfigjson)
+func (FT *FrozenTrie) LoadTag(filepath string) error {
+    data, err := ioutil.ReadFile(filepath)
     if err != nil {
         fmt.Print(err)
         return err
@@ -585,7 +585,7 @@ func (FT *FrozenTrie) decode(stamp string, ver string) (tags []string, err error
     return FT.flagstotag(u16)
 }
 
-func (ft *FrozenTrie) flagstotag(flags []uint16) ([]string, error) {
+func (FT *FrozenTrie) flagstotag(flags []uint16) ([]string, error) {
     // flags has to be an array of 16-bit integers.
 
     // first index always contains the header

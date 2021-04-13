@@ -11,21 +11,21 @@ import "strings"
 import "encoding/json"
 
 var Debug = false
-var RD = RankDirectory{}
-var FT = FrozenTrie{}
-var RD_buf = []uint16{}
-var TD_buf = []uint16{}
-var Blacklistconfigjson = "./filetag.json"
 var W = 16
 var L1 = 32 * 32
 var L2 = 32
-var NodeCount *int
 
 func Build(tdpath, rdpath, bcpath, ftpath string) (error, FrozenTrie) {
     // FIXME: add an integrity check for all four files which are
     // dependant on each other and need to be from the same "generation"
+    var RD = RankDirectory{}
+    var FT = FrozenTrie{}
+    var RD_buf = []uint16{}
+    var TD_buf = []uint16{}
+    
+    var NodeCount *int
     var err error
-    Blacklistconfigjson = string(ftpath)
+    //Blacklistconfigjson = string(ftpath)
     TD_buf, err = read_file_u16(tdpath)
     if err != nil {
         fmt.Println(err)
@@ -48,7 +48,7 @@ func Build(tdpath, rdpath, bcpath, ftpath string) (error, FrozenTrie) {
     RD.Init(RD_buf, TD_buf, *NodeCount*2+1, L1, L2, nil)
     //RD.display()
     FT.Init(TD_buf, RD, *NodeCount)
-    FT.LoadTag()
+    FT.LoadTag(string(ftpath))
     //LoadNodecount_BasicConfig("./basicconfig.json")
 
     /*
