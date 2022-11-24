@@ -3,10 +3,10 @@ package trie
 //import "fmt"
 
 type Bitwriter struct {
-    bits   []byte
-    bytes  []byte
-    bits16 []byte
-    Top    int32
+	bits   []byte
+	bytes  []byte
+	bits16 []byte
+	Top    int32
 }
 
 /*
