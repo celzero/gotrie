@@ -84,6 +84,9 @@ func (FT *FrozenTrie) getRoot() FrozenTrieNode {
 func (FT *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 	var node = FT.getRoot()
 	var emptyreturn []uint32
+	// considerably greater than the observed max-size of a node in the
+	// radix-trie (18 Jan 2023): "maxsize: 1215" https://archive.is/MC0dq
+	var maxiters = 3000
 
 	for i := 0; i < len(word); i++ {
 		var isFlag = -1
@@ -135,7 +138,10 @@ func (FT *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 				startchild = append(startchild, child)
 				start = start + 1
 
-				for {
+				for i := 0; ; i++ {
+					if i >= maxiters {
+						return false, emptyreturn
+					}
 					temp = node.getChild(probe - start)
 					if !temp.compressed() {
 						break
@@ -166,7 +172,10 @@ func (FT *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 				}
 
 				if child.compressed() {
-					for {
+					for i := 0; ; i++ {
+						if i >= maxiters {
+							return false, emptyreturn
+						}
 						end = end + 1
 						temp = node.getChild(probe + end)
 						endchild = append(endchild, temp)
