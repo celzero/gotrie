@@ -6,8 +6,6 @@ import (
 )
 import "bytes"
 import "encoding/binary"
-import "strconv"
-import "strings"
 import "encoding/json"
 
 var Debug = false
@@ -22,49 +20,36 @@ func Build(tdpath, rdpath, bcpath, ftpath string) (error, FrozenTrie) {
 	var FT = FrozenTrie{}
 	var RD_buf = []uint16{}
 	var TD_buf = []uint16{}
-
-	var NodeCount *int
 	var err error
-	//Blacklistconfigjson = string(ftpath)
 	TD_buf, err = read_file_u16(tdpath)
 	if err != nil {
 		fmt.Println(err)
 		return err, FT
 	}
+
 	RD_buf, err = read_file_u16(rdpath)
 	if err != nil {
 		fmt.Println(err)
 		return err, FT
 	}
 
-	NodeCount, err = LoadNodecount_BasicConfig(bcpath)
+	bconfig, err := LoadBasicConfig(bcpath)
 	if err != nil {
-		fmt.Println(err)
 		return err, FT
 	}
-	fmt.Printf("TD_buf Length : %d\n", len(TD_buf))
-	fmt.Printf("RD_buf Length : %d\n", len(RD_buf))
 
-	RD.Init(RD_buf, TD_buf, *NodeCount*2+1, L1, L2, nil)
-	//RD.display()
-	FT.Init(TD_buf, RD, *NodeCount)
-	FT.LoadTag(string(ftpath))
-	//LoadNodecount_BasicConfig("./basicconfig.json")
+	TD_buf_md5 := MD5Hex(castToBytes(TD_buf))
+	RD_buf_md5 := MD5Hex(castToBytes(RD_buf))
 
-	/*
-	   var str_uint8 = []uint8{}
-	   var arr = []uint64{}
-	   var tag = []string{}
-	   var status bool
-	   str_uint8,err = TxtEncode("101.ru")
-	   fmt.Println(str_uint8)
-	   status,arr = FT.lookup(str_uint8)
-	   fmt.Println(status)
-	   fmt.Println(arr)
-	   if(status){
-	       tag = FT.FlagstoTag(arr)
-	       fmt.Println(tag)
-	   }*/
+	nodecount := int(bconfig["nodecount"].(float64))
+	tdmd5, _ := bconfig["tdmd5"].(string)
+	rdmd5, _ := bconfig["rdmd5"].(string)
+	fmt.Printf("md5(TD): %s <-> %s | md5(RD): %s <-> %s | nc: %d\n", TD_buf_md5, tdmd5, RD_buf_md5, rdmd5, nodecount)
+
+	RD.Init(RD_buf, TD_buf, nodecount*2+1, L1, L2, nil)
+	FT.Init(TD_buf, RD, nodecount)
+	FT.LoadTag(ftpath)
+
 	return nil, FT
 }
 
@@ -75,8 +60,7 @@ func read_file_u16(path string) ([]uint16, error) {
 		return nil, err
 	}
 
-	fmt.Println("file read successful : " + path)
-	fmt.Println("file byte length : ", len(content))
+	fmt.Println("read from %s len %d", path, len(content))
 	r := bytes.NewReader(content)
 	tmp16 := make([]uint16, len(content)/2)
 	err = binary.Read(r, binary.LittleEndian, &tmp16)
@@ -87,33 +71,19 @@ func read_file_u16(path string) ([]uint16, error) {
 	return tmp16, err
 }
 
-func Read_nodecount(path string) (*int, error) {
-	content, err := ioutil.ReadFile(path)
-	if err != nil {
-		fmt.Println("Error At read file : build.go -> read_nodecount()")
-		return nil, err
-	}
-	nodecount, _ := strconv.Atoi(strings.TrimSpace(string(content)))
-	fmt.Println("file read successful : " + path)
-	fmt.Println("node count : ", nodecount)
-
-	return &nodecount, err
-}
-
-func LoadNodecount_BasicConfig(filepath string) (*int, error) {
+func LoadBasicConfig(filepath string) (map[string]interface{}, error) {
 	data, err := ioutil.ReadFile(filepath)
 	if err != nil {
 		fmt.Print(err)
 		return nil, err
 	}
 
-	var obj map[string]interface{}
-	err = json.Unmarshal(data, &obj)
+	var jobj map[string]interface{}
+	err = json.Unmarshal(data, &jobj)
 	if err != nil {
-		fmt.Println("error:", err)
+		fmt.Println("could not read basicconfig:", err)
 		return nil, err
 	}
-	var nodecount = int(obj["nodecount"].(float64))
 
-	return &nodecount, err
+	return jobj, err
 }

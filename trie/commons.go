@@ -3,6 +3,9 @@ package trie
 import "bytes"
 import "encoding/binary"
 import "fmt"
+import "crypto/md5"
+import "encoding/hex"
+import "unsafe"
 
 func bit0p(n int, p int) map[string]int {
 	var ret = make(map[string]int)
@@ -93,12 +96,10 @@ func TxtEncode(str string) ([]uint8, error) {
 		return nil, err
 	}
 
-	//fmt.Println(tmp_u8)
 	for i, j := 0, len(tmp_u8)-1; i < j; i, j = i+1, j-1 {
 		tmp_u8[i], tmp_u8[j] = tmp_u8[j], tmp_u8[i]
 	}
 
-	//fmt.Println(tmp_u8)
 	return tmp_u8, nil
 }
 
@@ -126,7 +127,22 @@ func Find_Lista_Listb(list1 []string, list2 []string) (bool, []string) {
 		}
 	}
 
-	// fmt.Println("usr list : ", list1)
-	// fmt.Println("list 2 : ", list2)
 	return found, retlist
+}
+
+// from: stackoverflow.com/a/25286918
+func MD5Hex(b []byte) string {
+	hash := md5.Sum(b)
+	return hex.EncodeToString(hash[:])
+}
+
+// stackoverflow.com/a/74643597
+func castToBytes[T any](s []T) []byte {
+	l := len(s)
+	if l == 0 {
+		return nil
+	}
+
+	sz := int(unsafe.Sizeof(s[0])) * l
+	return unsafe.Slice((*byte)(unsafe.Pointer(&s[0])), sz)
 }
