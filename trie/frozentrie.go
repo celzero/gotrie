@@ -20,18 +20,17 @@ type FrozenTrie struct {
 	valuesStart         int
 	valuesIndexLength   int
 	valuesDirBitsLength int
-	//rflags              []string
-	rflags map[int]string
-	fdata  map[string]interface{}
-	bcache *Cache
-	blen   *int
-	fcache *Cache
-	flen   *int
-	blimt  int
-	flimt  int
+	rflags              map[int]string
+	fdata               map[string]interface{}
+	bcache              *Cache
+	blen                *int
+	fcache              *Cache
+	flen                *int
+	blimt               int
+	flimt               int
 
-	usr_flag       string
-	usr_bl         []string
+	usr_flag string
+	usr_bl   []string
 }
 
 func (f *FrozenTrie) GetData() BS {
@@ -352,21 +351,25 @@ func (FT *FrozenTrie) DNlookup(dn string, usr_flag string) (bool, []string) {
 		FT.usr_flag = usr_flag
 	}
 
+	// lookup the whole fqdn, ex: a.b.c.tld
 	block, lists := FT.lookupDomain(dn)
 
 	if block {
 		return block, lists
 	}
 
-	alldomains := subdomains(dn)
+	// lookup the subdomains, ex: [b.c.tld, c.tld, tld]
+	subs := subdomains(dn)
 
-	for _, d := range alldomains {
+	for _, d := range subs {
 		block, lists = FT.lookupDomain(d)
 		if block == true {
 			break
-		} else {
-			lists = []string{}
 		}
+	}
+
+	if !block {
+		lists = []string{}
 	}
 
 	return block, lists
@@ -604,7 +607,7 @@ func bytestouint(b []byte) []uint16 {
 func subdomains(target string) []string {
 	c := strings.Count(target, ".")
 	l := []string{}
-	for i := 0; i < c-1; i++ {
+	for i := 0; i < c; i++ {
 		s := strings.Index(target, ".") + 1
 		target = target[s:]
 		l = append(l, target)
