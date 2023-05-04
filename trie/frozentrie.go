@@ -1,8 +1,9 @@
 package trie
 
-import "math"
-import "fmt"
 import (
+	"fmt"
+	"math"
+
 	b64 "encoding/base64"
 	"encoding/binary"
 	"encoding/json"
@@ -284,7 +285,7 @@ func (FT *FrozenTrie) LoadTag(filepath string) error {
 
 func (FT *FrozenTrie) FlagstoTag(flags []uint32) []string {
 	values := []string{}
-	if len(FT.rflags) <= 0 {
+	if len(FT.rflags) <= 0 || len(flags) <= 0 {
 		return values
 	}
 	// flags has to be an array of 16-bit integers.
@@ -408,7 +409,7 @@ func (FT *FrozenTrie) lookupDomain(dn string) (bool, []string) {
 	var status bool
 	str_uint8, _ := TxtEncode(dn)
 	status, arr = FT.lookup(str_uint8)
-	if status {
+	if status && len(arr) > 0 {
 		tag = FT.FlagstoTag(arr)
 
 		//fmt.Printf("Return frm lookup and flagtotag : %d\n", len(tag))
