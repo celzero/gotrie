@@ -35,6 +35,8 @@ func Build(tdpath, rdpath, bcpath, ftpath string) (FT *FrozenTrie, err error) {
 		return
 	}
 
+	nodecount := int(bconfig["nodecount"].(float64))
+
 	if Debug {
 		TD_buf_md5 := MD5Hex(castToBytes(TD_buf))
 		RD_buf_md5 := MD5Hex(castToBytes(RD_buf))
@@ -42,8 +44,6 @@ func Build(tdpath, rdpath, bcpath, ftpath string) (FT *FrozenTrie, err error) {
 		rdmd5, _ := bconfig["rdmd5"].(string)
 		fmt.Printf("md5(TD): %s <-> %s | md5(RD): %s <-> %s | nc: %d\n", TD_buf_md5, tdmd5, RD_buf_md5, rdmd5, nodecount)
 	}
-
-	nodecount := int(bconfig["nodecount"].(float64))
 
 	rdb := NewBStr(RD_buf)
 	tdb := NewBStr(TD_buf)

@@ -1,12 +1,13 @@
 package main
 
-import "github.com/celzero/gotrie/trie"
-import "fmt"
-import "runtime"
-import "unsafe"
 import (
+	"fmt"
 	"os"
+	"runtime"
 	"runtime/pprof"
+	"unsafe"
+
+	"github.com/celzero/gotrie/trie"
 )
 
 //import "time"
@@ -29,7 +30,7 @@ func main() {
 }
 
 func loadbuild(mychannel chan bool) {
-	err, FT := trie.Build("./td", "./rank", "./basicconfig", "./blocklists")
+	FT, err := trie.Build("./td", "./rank", "./basicconfig", "./blocklists")
 	if err == nil {
 		//[33216 32768 8192 256 4]
 		//6IeA6ICA4oCAxIAE

@@ -3,7 +3,6 @@ package trie
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -82,10 +81,9 @@ func CheckDN1() {
 	//usr_flag := FT.CreateUrlEncodedflag(res)
 
 	var files []string
-	err, FT := Build("./td.txt", "./rd.txt", "./basicconfig.json", "./filetag.json")
-	if err == nil {
-		//res := []string{"DAH","ADH","BXW", "BQJ"}
-		//fmt.Println("Base64 to flag : ",FT.Urlenc_to_flag(FT.CreateUrlEncodedflag(res)))
+	FT, err := Build("./td.txt", "./rd.txt", "./basicconfig.json", "./filetag.json")
+	if err != nil {
+		panic(err)
 	}
 	root := "D:\\Celzero\\blocklist script\\blocklistfiles\\parentalcontrol\\"
 	err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
@@ -99,7 +97,7 @@ func CheckDN1() {
 	}
 
 	for _, str := range files {
-		content, err := ioutil.ReadFile(str)
+		content, err := os.ReadFile(str)
 		if err != nil {
 			fmt.Printf("failed opening file: %s\n", err)
 			continue
