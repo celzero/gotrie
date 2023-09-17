@@ -1,11 +1,13 @@
 package trie
 
-import "bytes"
-import "encoding/binary"
-import "fmt"
-import "crypto/md5"
-import "encoding/hex"
-import "unsafe"
+import (
+	"bytes"
+	"crypto/md5"
+	"encoding/binary"
+	"encoding/hex"
+	"fmt"
+	"unsafe"
+)
 
 func bit0p(n int, p int) map[string]int {
 	var ret = make(map[string]int)
@@ -137,7 +139,8 @@ func MD5Hex(b []byte) string {
 }
 
 // stackoverflow.com/a/74643597
-func castToBytes[T any](s []T) []byte {
+func castToBytes[T any](t *[]T) []byte {
+	s := *t
 	l := len(s)
 	if l == 0 {
 		return nil

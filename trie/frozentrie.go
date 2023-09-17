@@ -2,74 +2,58 @@ package trie
 
 import (
 	"fmt"
-	"math"
+	"os"
 
 	b64 "encoding/base64"
 	"encoding/binary"
 	"encoding/json"
-	"io/ioutil"
 	"net/url"
 	"strings"
 )
 
+const cachesz = 2100
+const cacheszlo = 2000
+
 type FrozenTrie struct {
-	data                BS
-	directory           RankDirectory
-	extraBit            int
-	bitslen             int
-	letterStart         int
-	valuesStart         int
-	valuesIndexLength   int
-	valuesDirBitsLength int
-	rflags              map[int]string
-	fdata               map[string]interface{}
-	bcache              *Cache
-	blen                *int
-	fcache              *Cache
-	flen                *int
-	blimt               int
-	flimt               int
+	data        *BStr
+	directory   *RankDirectory
+	extraBit    int
+	bitslen     int
+	letterStart int
+	rflags      map[int]string
+	fdata       map[string]any
+	bcache      *Cache
+	fcache      *Cache
 
 	usr_flag string
 	usr_bl   []string
 }
 
-func (f *FrozenTrie) GetData() BS {
+func (f *FrozenTrie) GetData() *BStr {
 	return f.data
 }
 
-func (f *FrozenTrie) GetDir() RankDirectory {
+func (f *FrozenTrie) GetDir() *RankDirectory {
 	return f.directory
 }
 
-func (FT *FrozenTrie) Init(trieData []uint16, rdir RankDirectory, nodeCount int) {
-	FT.data = BS{}
-	FT.data.Init(trieData)
+func (FT *FrozenTrie) Init(td *BStr, rdir *RankDirectory, nodeCount int, tagfile string) {
+	FT.data = td
 
 	FT.directory = rdir
 	FT.extraBit = 1              //(config.compress && !config.unroll) ? 1 : 0;
 	FT.bitslen = 9 + FT.extraBit //((config.base32) ? 6 : 9) + this.extraBit;
 	FT.letterStart = nodeCount*2 + 1
 
-	FT.valuesStart = FT.letterStart + (nodeCount * FT.bitslen) // + 1;
-
-	FT.valuesIndexLength = int(math.Ceil(math.Log2(float64(nodeCount))))
-
-	FT.valuesDirBitsLength = int(math.Ceil(math.Log2(float64(FT.data.length - FT.valuesStart))))
-
-	FT.bcache = New()
-	FT.fcache = New()
-	var a = 0
-	FT.blen = &a
-	var b = 0
-	FT.flen = &b
-	FT.blimt = 2500
-	FT.flimt = 2500
+	FT.bcache = newLfuCache(cachesz, cacheszlo)
+	FT.fcache = newLfuCache(cachesz, cacheszlo)
 	FT.rflags = make(map[int]string)
 	FT.fdata = make(map[string]interface{})
 
 	FT.usr_flag = ""
 	FT.usr_bl = []string{}
+
+	FT.LoadTag(tagfile)
 }
 
 func (FT *FrozenTrie) getNodeByIndex(index int) FrozenTrieNode {
@@ -114,7 +98,7 @@ func (FT *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 		var low = isFlag
 		var child FrozenTrieNode
 		for (high - low) > 1 {
-			var probe = (high+low)/2 | 0
+			var probe = (high + low) / 2
 			child = node.getChild(probe)
 			var prevchild *FrozenTrieNode
 
@@ -255,7 +239,7 @@ func (FT *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 }
 
 func (FT *FrozenTrie) LoadTag(filepath string) error {
-	data, err := ioutil.ReadFile(filepath)
+	data, err := os.ReadFile(filepath)
 	if err != nil {
 		fmt.Print(err)
 		return err
@@ -373,7 +357,7 @@ func (FT *FrozenTrie) DNlookup(dn string, usr_flag string) (bool, []string) {
 
 	for _, d := range subs {
 		block, lists = FT.lookupDomain(d)
-		if block == true {
+		if block {
 			break
 		}
 	}
@@ -415,23 +399,11 @@ func (FT *FrozenTrie) lookupDomain(dn string) (bool, []string) {
 		//fmt.Printf("Return frm lookup and flagtotag : %d\n", len(tag))
 		found, retlist = Find_Lista_Listb(FT.usr_bl, tag)
 
-		if *FT.blen >= FT.blimt {
-			FT.bcache.Evict(1)
-			*(FT.blen)--
-			//fmt.Println("B-Cache Full Evicted : 1")
-		}
 		FT.bcache.Set(dn, strings.Join(tag, "-"))
-		*(FT.blen)++
 		//fmt.Println("Add to B-Cache lenght : ",*FT.blen)
 		return found, retlist
 	} else {
-		if *FT.flen >= FT.flimt {
-			FT.fcache.Evict(1)
-			*(FT.flen)--
-			//fmt.Println("F-Cache Full Evicted : 1")
-		}
 		FT.fcache.Set(dn, "")
-		*(FT.flen)++
 		//fmt.Println("Add to F-Cache lenght : ",*FT.flen)
 		return found, retlist
 	}

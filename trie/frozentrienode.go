@@ -19,7 +19,7 @@ func (FTN *FrozenTrieNode) Init(FT *FrozenTrie, index int) {
 	}
 }
 
-func (FTN FrozenTrieNode) check() {
+func (FTN *FrozenTrieNode) check() {
 	fmt.Println("FrozenTrieNode td length : ", len(FTN.trie.data.bytes))
 	//fmt.Println("FrozenTrieNode rd length : ",len(FTN.trie.directory))
 }
