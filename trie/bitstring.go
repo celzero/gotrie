@@ -6,7 +6,7 @@ import (
 )
 
 type BStr struct {
-	bytes  []uint16
+	bytes  *[]uint16
 	length int
 }
 
@@ -15,26 +15,28 @@ func NewBStr(str *[]uint16) *BStr {
 		return nil
 	}
 
-	bs := new(BStr)
+	return &BStr{
+		bytes:  str,
+		length: len(*str) * W,
+	}
+}
 
-	bs.bytes = *str
-	bs.length = len(bs.bytes) * W
-
-	return bs
+func (bs *BStr) Size() int {
+	return bs.length
 }
 
 func (bs *BStr) get(p int, n int, debug bool) uint32 {
-
+	bb := *bs.bytes
 	if (p%W)+n <= W {
-		return uint32((bs.bytes[p/W] & MaskTop[int(W)][p%W]) >> (W - (p % W) - n))
+		return uint32((bb[p/W] & MaskTop[W][p%W]) >> (W - (p % W) - n))
 		// case 2: bits lie incompletely in the given byte
 	} else {
 		var result uint32
 		var l int
-		result = uint32(bs.bytes[p/W] & MaskTop[int(W)][p%W])
+		result = uint32(bb[p/W] & MaskTop[W][p%W])
 
-		disp1 := bs.bytes[p/W]
-		disp2 := MaskTop[int(W)][p%W]
+		disp1 := bb[p/W]
+		disp2 := MaskTop[W][p%W]
 		var res1 = result
 
 		l = W - p%W
@@ -42,14 +44,14 @@ func (bs *BStr) get(p int, n int, debug bool) uint32 {
 		n -= l
 
 		for n >= W {
-			result = (result << W) | uint32(bs.bytes[p/W])
+			result = (result << W) | uint32(bb[p/W])
 			p += W
 			n -= W
 		}
 
 		var res2 = result
 		if n > 0 {
-			result = (result << n) | uint32(bs.bytes[p/W]>>(W-n))
+			result = (result << n) | uint32(bb[p/W]>>(W-n))
 		}
 
 		if debug {
@@ -57,17 +59,6 @@ func (bs *BStr) get(p int, n int, debug bool) uint32 {
 		}
 		return result
 	}
-}
-
-func (bs *BStr) count(p int, n int) int {
-	count := 0
-	for n >= 16 {
-		i := bs.get(p, 16, false)
-		count = count + (BitsSetTable256[i])
-		p += 16
-		n -= 16
-	}
-	return count + BitsSetTable256[bs.get(p, n, false)]
 }
 
 func (bs *BStr) pos0(i int, n int) int {
@@ -108,6 +99,7 @@ func CountSetBits(n int) int {
 }
 
 func init() {
+	// W is set to 16
 	MaskTop[16] = []uint16{}
 	MaskTop[16] = append(MaskTop[16], 0xffff)
 	MaskTop[16] = append(MaskTop[16], 0x7fff)
