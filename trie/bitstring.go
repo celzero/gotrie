@@ -94,8 +94,8 @@ func (bs *BStr) pos0(i int, n int) int {
 			diff = Bit0(int(d), 1, step)
 		} else {
 			diff = 1
-			index = i - diff // 1;
 		}
+		index = i - diff // 1;
 	}
 	return index
 }
