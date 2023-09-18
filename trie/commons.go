@@ -133,8 +133,8 @@ func Find_Lista_Listb(list1 []string, list2 []string) (bool, []string) {
 }
 
 // from: stackoverflow.com/a/25286918
-func MD5Hex(b []byte) string {
-	hash := md5.Sum(b)
+func MD5Hex(b *[]byte) string {
+	hash := md5.Sum(*b)
 	return hex.EncodeToString(hash[:])
 }
 
@@ -148,4 +148,20 @@ func castToBytes[T any](t *[]T) []byte {
 
 	sz := int(unsafe.Sizeof(s[0])) * l
 	return unsafe.Slice((*byte)(unsafe.Pointer(&s[0])), sz)
+}
+
+// stackoverflow.com/a/25409018
+func bytesToUint16(bptr *[]byte) *[]uint16 {
+	b := *bptr
+	l := len(b)
+	if l == 0 {
+		return nil
+	}
+	if l%2 != 0 {
+		fmt.Printf("bytesToUint16: len(%d) mod 2 != 0\n", l)
+	}
+
+	sz := l / 2
+	u16 := unsafe.Slice((*uint16)(unsafe.Pointer(&b[0])), sz)
+	return &u16
 }
