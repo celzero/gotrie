@@ -3,6 +3,7 @@ package trie
 import (
 	"fmt"
 	"os"
+	"unsafe"
 
 	b64 "encoding/base64"
 	"encoding/binary"
@@ -29,12 +30,8 @@ type FrozenTrie struct {
 	usr_bl   []string
 }
 
-func (f *FrozenTrie) GetData() *BStr {
-	return f.data
-}
-
-func (f *FrozenTrie) GetDir() *RankDirectory {
-	return f.directory
+func (f *FrozenTrie) Sizes() string {
+	return fmt.Sprintf("ft: %d, td: %d, rd: %d\n", unsafe.Sizeof(f), unsafe.Sizeof(f.data), unsafe.Sizeof(f.directory))
 }
 
 func (FT *FrozenTrie) Init(td *BStr, rdir *RankDirectory, nodeCount int, tagfile string) {
@@ -426,7 +423,7 @@ func (FT *FrozenTrie) CreateUrlEncodedflag(fl []string) string {
 		}
 
 		//fmt.Println("Mask Bottom : ",uint(FT.data.MaskBottom[16][16 - index]))
-		dataIndex := FT.data.countSetBits(h&int(FT.data.MaskBottom[16][16-index])) + 1
+		dataIndex := CountSetBits(h&int(MaskBottom[16][16-index])) + 1
 
 		n := 0
 		if ((h >> (15 - index)) & 0x1) != 1 {

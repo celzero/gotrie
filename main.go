@@ -5,7 +5,6 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
-	"unsafe"
 
 	"github.com/celzero/gotrie/trie"
 )
@@ -69,8 +68,7 @@ func loadbuild(mychannel chan bool) {
 
 		PrintMemUsage()
 
-		fmt.Println("ft: %d, td: %d, rd: %d",
-			unsafe.Sizeof(FT), unsafe.Sizeof(FT.GetData()), unsafe.Sizeof(FT.GetDir()))
+		fmt.Println(FT.Sizes())
 		/*
 		   for{
 		       reader := bufio.NewReader(os.Stdin)
