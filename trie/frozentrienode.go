@@ -11,84 +11,82 @@ type FrozenTrieNode struct {
 	fcCached, chCached               *int
 }
 
-func (FTN *FrozenTrieNode) Init(FT *FrozenTrie, index int) {
-	FTN.trie = FT
-	FTN.index = index
+func NewFrozenTrieNode(ft *FrozenTrie, index int) *FrozenTrieNode {
+	ftn := &FrozenTrieNode{
+		trie:  ft,
+		index: index,
+	}
 	if Debug {
-		fmt.Printf("%d :i, fc: %d tl: %d c: %t f: %t wh: %d flag: %t\n", FTN.index, FTN.firstChild(), FTN.letter(), FTN.compressed(), FTN.final(), FTN.where(), FTN.flag())
+		fmt.Printf("%d :i, fc: %d tl: %d c: %t f: %t wh: %d flag: %t\n", ftn.index, ftn.firstChild(), ftn.letter(), ftn.compressed(), ftn.final(), ftn.where(), ftn.flag())
 	}
+	return ftn
 }
 
-func (FTN *FrozenTrieNode) check() {
-	fmt.Println("FrozenTrieNode td length : ", len(FTN.trie.data.bytes))
-	//fmt.Println("FrozenTrieNode rd length : ",len(FTN.trie.directory))
-}
-
-func (FTN *FrozenTrieNode) final() bool {
-	if FTN.finCached == nil {
-		tmp := (FTN.trie.data.get(FTN.trie.letterStart+(FTN.index*FTN.trie.bitslen)+FTN.trie.extraBit, 1, false) == 1)
-		FTN.finCached = &tmp
+func (ftn *FrozenTrieNode) final() bool {
+	if ftn.finCached == nil {
+		tmp := (ftn.trie.data.get(ftn.trie.letterStart+(ftn.index*ftn.trie.bitslen)+ftn.trie.extraBit, 1, false) == 1)
+		ftn.finCached = &tmp
 	}
-	return *FTN.finCached
+	return *ftn.finCached
 }
 
-func (FTN *FrozenTrieNode) where() uint32 {
-	if FTN.whCached == nil {
-		tmp := FTN.trie.data.get(FTN.trie.letterStart+(FTN.index*FTN.trie.bitslen)+1+FTN.trie.extraBit, FTN.trie.bitslen-1-FTN.trie.extraBit, false)
-		FTN.whCached = &tmp
+func (ftn *FrozenTrieNode) where() uint32 {
+	if ftn.whCached == nil {
+		tmp := ftn.trie.data.get(ftn.trie.letterStart+(ftn.index*ftn.trie.bitslen)+1+ftn.trie.extraBit, ftn.trie.bitslen-1-ftn.trie.extraBit, false)
+		ftn.whCached = &tmp
 	}
-	return *FTN.whCached
+	return *ftn.whCached
 }
 
-func (FTN *FrozenTrieNode) compressed() bool {
-	if FTN.comCached == nil {
-		tmp := (FTN.trie.data.get(FTN.trie.letterStart+(FTN.index*FTN.trie.bitslen), 1, false) == 1) //(config.compress && !config.unroll)
-		FTN.comCached = &tmp
+func (ftn *FrozenTrieNode) compressed() bool {
+	if ftn.comCached == nil {
+		tmp := (ftn.trie.data.get(ftn.trie.letterStart+(ftn.index*ftn.trie.bitslen), 1, false) == 1) //(config.compress && !config.unroll)
+		ftn.comCached = &tmp
 	}
-	return *FTN.comCached
+	return *ftn.comCached
 }
 
-func (FTN *FrozenTrieNode) flag() bool {
-	if FTN.flagCached == nil {
-		tmp := (FTN.compressed() && FTN.final()) //(config.valueNode) ?
-		FTN.flagCached = &tmp
+func (ftn *FrozenTrieNode) flag() bool {
+	if ftn.flagCached == nil {
+		tmp := (ftn.compressed() && ftn.final()) //(config.valueNode) ?
+		ftn.flagCached = &tmp
 	}
-	return *FTN.flagCached
+	return *ftn.flagCached
 }
 
-func (FTN *FrozenTrieNode) letter() uint32 {
-	return FTN.where()
+func (ftn *FrozenTrieNode) letter() uint32 {
+	return ftn.where()
 }
 
-func (FTN *FrozenTrieNode) firstChild() int {
-	if FTN.fcCached == nil {
-		tmp := FTN.trie.directory.selectRD(0, FTN.index+1) - FTN.index
-		FTN.fcCached = &tmp
+func (ftn *FrozenTrieNode) firstChild() int {
+	if ftn.fcCached == nil {
+		tmp := ftn.trie.directory.rank(0, ftn.index+1) - ftn.index
+		ftn.fcCached = &tmp
 	}
-	return *FTN.fcCached
+	return *ftn.fcCached
 }
 
-func (FTN *FrozenTrieNode) childOfNextNode() int {
-	if FTN.chCached == nil {
-		tmp := FTN.trie.directory.selectRD(0, FTN.index+2) - FTN.index - 1
-		FTN.chCached = &tmp
+func (ftn *FrozenTrieNode) childOfNextNode() int {
+	if ftn.chCached == nil {
+		tmp := ftn.trie.directory.rank(0, ftn.index+2) - ftn.index - 1
+		ftn.chCached = &tmp
 	}
-	return *FTN.chCached
+	return *ftn.chCached
 }
 
-func (FTN *FrozenTrieNode) childCount() int {
-	return FTN.childOfNextNode() - FTN.firstChild()
+func (ftn *FrozenTrieNode) childCount() int {
+	return ftn.childOfNextNode() - ftn.firstChild()
 }
 
-func (FTN *FrozenTrieNode) value() []uint32 {
-	if FTN.valCached == nil {
+func (ftn *FrozenTrieNode) value() []uint32 {
+	if ftn.valCached == nil {
 		//let valueChain = this;
 		value := []uint32{}
 		i := 0
 		j := 0
 		//if (config.debug) console.log("thisnode: index/vc/ccount ", this.index, this.letter(), this.childCount())
-		for i < FTN.childCount() {
-			valueChain := FTN.getChild(i)
+		for i < ftn.childCount() {
+			valueChain := ftn.getChild(i)
 			//if (config.debug) console.log("vc no-flag end vlet/vflag/vindex/val ", i, valueChain.letter(), valueChain.flag(), valueChain.index, value)
 			if !valueChain.flag() {
 				break
@@ -101,16 +99,16 @@ func (FTN *FrozenTrieNode) value() []uint32 {
 			}
 			i += 1
 		}
-		FTN.valCached = &value
+		ftn.valCached = &value
 	}
 
-	return *FTN.valCached
+	return *ftn.valCached
 }
 
-func (FTN *FrozenTrieNode) getChildCount() int {
-	return FTN.childCount()
+func (ftn *FrozenTrieNode) getChildCount() int {
+	return ftn.childCount()
 }
 
-func (FTN *FrozenTrieNode) getChild(index int) FrozenTrieNode {
-	return FTN.trie.getNodeByIndex(FTN.firstChild() + index)
+func (ftn *FrozenTrieNode) getChild(index int) *FrozenTrieNode {
+	return ftn.trie.getNodeByIndex(ftn.firstChild() + index)
 }

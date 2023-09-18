@@ -20,8 +20,6 @@ func NewBStr(str *[]uint16) *BStr {
 	bs.bytes = *str
 	bs.length = len(bs.bytes) * W
 
-	//fmt.Printf("Length : %d\n",BitString.length)
-	//fmt.Printf("str Length : %d\n",len(*str))
 	return bs
 }
 
@@ -35,7 +33,6 @@ func (bs *BStr) get(p int, n int, debug bool) uint32 {
 		var l int
 		result = uint32(bs.bytes[p/W] & MaskTop[int(W)][p%W])
 
-		tmp_count := 0 //santhosh added
 		disp1 := bs.bytes[p/W]
 		disp2 := MaskTop[int(W)][p%W]
 		var res1 = result
@@ -45,7 +42,6 @@ func (bs *BStr) get(p int, n int, debug bool) uint32 {
 		n -= l
 
 		for n >= W {
-			tmp_count += 1
 			result = (result << W) | uint32(bs.bytes[p/W])
 			p += W
 			n -= W
@@ -57,7 +53,7 @@ func (bs *BStr) get(p int, n int, debug bool) uint32 {
 		}
 
 		if debug {
-			fmt.Printf("disp1: %d disp2: %d loopcount: %d res1:%d res2:%d r:%d\n", disp1, disp2, tmp_count, res1, res2, result)
+			fmt.Printf("disp1: %d disp2: %d res1:%d res2:%d r:%d\n", disp1, disp2, res1, res2, result)
 		}
 		return result
 	}
@@ -85,7 +81,7 @@ func (bs *BStr) pos0(i int, n int) int {
 		bits0 := step - CountSetBits(int(d))
 		diff := 0
 		if n-bits0 < 0 {
-			step = int(math.Max(float64(n), float64(step/2|0)))
+			step = int(math.Max(float64(n), float64(step/2)))
 			continue
 		}
 		n -= bits0
@@ -152,7 +148,7 @@ func init() {
 
 	BitsSetTable256[0] = 0
 	for i := 0; i < 256; i++ {
-		j := int(math.Floor(float64(i / 2))) // j = i >> 1
+		j := int(float64(i / 2)) // j = i >> 1
 		BitsSetTable256[i] = (i & 1) + BitsSetTable256[j]
 	}
 }

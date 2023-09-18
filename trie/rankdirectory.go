@@ -7,7 +7,6 @@ import (
 
 type RankDirectory struct {
 	Directory   *BStr
-	ValueDir    *BStr
 	Data        *BStr
 	l1Size      int
 	l2Size      int
@@ -17,54 +16,52 @@ type RankDirectory struct {
 	numBits     int
 }
 
-func (RD *RankDirectory) Init(rd, td *BStr, numBits int, l1Size int, l2Size int) {
-	RD.Directory = rd
-	RD.Data = td
-	RD.ValueDir = nil // unused
-	RD.l1Size = l1Size
-	RD.l2Size = l2Size
-	RD.l1Bits = int(math.Ceil(math.Log2(float64(numBits))))
-	RD.l2Bits = int(math.Ceil(math.Log2(float64(l1Size))))
-	RD.sectionBits = (l1Size/l2Size-1)*RD.l2Bits + RD.l1Bits
-	RD.numBits = numBits
-	if Debug {
-		RD.display()
+func NewRankDir(rd, td *BStr, numBits int, l1Size int, l2Size int) *RankDirectory {
+	l1Bits := int(math.Ceil(math.Log2(float64(numBits))))
+	l2Bits := int(math.Ceil(math.Log2(float64(l1Size))))
+	rdir := &RankDirectory{
+		Directory:   rd,
+		Data:        td,
+		l1Size:      l1Size,
+		l2Size:      l2Size,
+		l1Bits:      l1Bits,
+		l2Bits:      l2Bits,
+		sectionBits: (l1Size/l2Size-1)*l2Bits + l1Bits,
+		numBits:     numBits,
 	}
+	if Debug {
+		rdir.display()
+	}
+	return rdir
 }
 
 func (RD *RankDirectory) display() {
-	fmt.Println("RankDirectory rd length : ", len(RD.Directory.bytes))
-	fmt.Println("RankDirectory td length : ", len(RD.Data.bytes))
-	fmt.Println("Num Bits : ", RD.numBits)
-	fmt.Println("L1size : ", RD.l1Size)
-	fmt.Println("l1bits : ", RD.l1Bits)
-	fmt.Println("l2bits : ", RD.l2Bits)
+	fmt.Println("sz(rd): ", RD.Directory.Size())
+	fmt.Println("sz(td): ", RD.Data.Size())
+	fmt.Println("numBits: ", RD.numBits)
+	fmt.Println("L1size: ", RD.l1Size)
+	fmt.Println("l1bits: ", RD.l1Bits)
+	fmt.Println("l2bits: ", RD.l2Bits)
 }
 
-func (RD *RankDirectory) selectRD(which, y int) int {
-	which = 0
-	return RD.rank(0, y) //if (config.selectsearch) { }
-}
-
-func (RD *RankDirectory) rank(which int, x int) int {
-	//if (config.selectsearch) { }
+func (rdir *RankDirectory) rank(which, x int) int {
 	var temp uint32
 	rank := -1
 	sectionPos := 0
-	if x >= RD.l2Size {
-		sectionPos = (x / RD.l2Size) * RD.l1Bits
-		temp = RD.Directory.get(sectionPos-RD.l1Bits, RD.l1Bits, false)
+	if x >= rdir.l2Size {
+		sectionPos = (x / rdir.l2Size) * rdir.l1Bits
+		temp = rdir.Directory.get(sectionPos-rdir.l1Bits, rdir.l1Bits, false)
 		rank = int(temp)
-		x = x % RD.l2Size
+		x = x % rdir.l2Size
 	}
 	var ans = 0
 	if x > 0 {
-		ans = RD.Data.pos0(rank+1, x)
+		ans = rdir.Data.pos0(rank+1, x)
 	} else {
 		ans = rank
 	}
 	if Debug {
-		fmt.Printf("ans: %d %d:r, x: %d %d:s %d:l1 %t:ifcheck\n", ans, temp, x, sectionPos, RD.l1Bits, x >= RD.l2Size)
+		fmt.Printf("ans: %d %d:r, x: %d %d:s %d:l1 %t:ifcheck\n", ans, temp, x, sectionPos, rdir.l1Bits, x >= rdir.l2Size)
 	}
 	return ans
 }

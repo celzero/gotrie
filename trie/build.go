@@ -14,10 +14,6 @@ var L1 = 32 * 32
 var L2 = 32
 
 func Build(tdpath, rdpath, bcpath, ftpath string) (FT *FrozenTrie, err error) {
-	// FIXME: add an integrity check for all four files which are
-	// dependant on each other and need to be from the same "generation"
-	FT = new(FrozenTrie)
-	var RD = new(RankDirectory)
 	TD_buf, err := read_file_u16(tdpath)
 	if err != nil {
 		fmt.Println(err)
@@ -47,8 +43,8 @@ func Build(tdpath, rdpath, bcpath, ftpath string) (FT *FrozenTrie, err error) {
 
 	rdb := NewBStr(RD_buf)
 	tdb := NewBStr(TD_buf)
-	RD.Init(rdb, tdb, nodecount*2+1, L1, L2)
-	FT.Init(tdb, RD, nodecount, ftpath)
+	RD := NewRankDir(rdb, tdb, nodecount*2+1, L1, L2)
+	FT = NewFrozenTrie(tdb, RD, nodecount, ftpath)
 
 	return
 }

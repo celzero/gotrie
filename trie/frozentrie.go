@@ -34,37 +34,35 @@ func (f *FrozenTrie) Sizes() string {
 	return fmt.Sprintf("ft: %d, td: %d, rd: %d\n", unsafe.Sizeof(f), unsafe.Sizeof(f.data), unsafe.Sizeof(f.directory))
 }
 
-func (FT *FrozenTrie) Init(td *BStr, rdir *RankDirectory, nodeCount int, tagfile string) {
-	FT.data = td
-
-	FT.directory = rdir
-	FT.extraBit = 1              //(config.compress && !config.unroll) ? 1 : 0;
-	FT.bitslen = 9 + FT.extraBit //((config.base32) ? 6 : 9) + this.extraBit;
-	FT.letterStart = nodeCount*2 + 1
-
-	FT.bcache = newLfuCache(cachesz, cacheszlo)
-	FT.fcache = newLfuCache(cachesz, cacheszlo)
-	FT.rflags = make(map[int]string)
-	FT.fdata = make(map[string]interface{})
-
-	FT.usr_flag = ""
-	FT.usr_bl = []string{}
-
-	FT.LoadTag(tagfile)
+func NewFrozenTrie(td *BStr, rdir *RankDirectory, nodeCount int, tagfile string) *FrozenTrie {
+	extraBit := 1 //(config.compress && !config.unroll) ? 1 : 0;
+	ft := &FrozenTrie{
+		data:        td,
+		directory:   rdir,
+		extraBit:    extraBit,
+		bitslen:     9 + extraBit, //((config.base32) ? 6 : 9) + this.extraBit;
+		letterStart: nodeCount*2 + 1,
+		bcache:      newLfuCache(cachesz, cacheszlo),
+		fcache:      newLfuCache(cachesz, cacheszlo),
+		rflags:      make(map[int]string),
+		fdata:       make(map[string]any),
+		usr_flag:    "",
+		usr_bl:      []string{},
+	}
+	ft.LoadTag(tagfile)
+	return ft
 }
 
-func (FT *FrozenTrie) getNodeByIndex(index int) FrozenTrieNode {
-	FTN := FrozenTrieNode{}
-	FTN.Init(FT, index)
-	return FTN
+func (f *FrozenTrie) getNodeByIndex(index int) *FrozenTrieNode {
+	return NewFrozenTrieNode(f, index)
 }
 
-func (FT *FrozenTrie) getRoot() FrozenTrieNode {
-	return FT.getNodeByIndex(0)
+func (f *FrozenTrie) getRoot() *FrozenTrieNode {
+	return f.getNodeByIndex(0)
 }
 
-func (FT *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
-	var node = FT.getRoot()
+func (f *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
+	var node = f.getRoot()
 	var emptyreturn []uint32
 	// considerably greater than the observed max-size of a node in the
 	// radix-trie (18 Jan 2023): "maxsize: 1215" https://archive.is/MC0dq
@@ -72,7 +70,7 @@ func (FT *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 
 	for i := 0; i < len(word); i++ {
 		var isFlag = -1
-		var that FrozenTrieNode
+		var that *FrozenTrieNode
 		for {
 			that = node.getChild(isFlag + 1)
 			if !that.flag() {
@@ -93,7 +91,7 @@ func (FT *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 		//if(config.compress === true && !config.unroll)
 		var high = node.getChildCount()
 		var low = isFlag
-		var child FrozenTrieNode
+		var child *FrozenTrieNode
 		for (high - low) > 1 {
 			var probe = (high + low) / 2
 			child = node.getChild(probe)
@@ -101,7 +99,7 @@ func (FT *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 
 			if probe > isFlag {
 				var tmp = node.getChild(probe - 1)
-				prevchild = &tmp
+				prevchild = tmp
 			} else {
 				prevchild = nil
 			}
@@ -112,9 +110,9 @@ func (FT *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 			}
 
 			if child.compressed() || (prevchild != nil && (prevchild.compressed() && !prevchild.flag())) {
-				var startchild []FrozenTrieNode
-				var endchild []FrozenTrieNode
-				var temp FrozenTrieNode
+				var startchild []*FrozenTrieNode
+				var endchild []*FrozenTrieNode
+				var temp *FrozenTrieNode
 				var start = 0
 				var end = 0
 				startchild = append(startchild, child)
@@ -235,7 +233,7 @@ func (FT *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 	return false, emptyreturn
 }
 
-func (FT *FrozenTrie) LoadTag(filepath string) error {
+func (ft *FrozenTrie) LoadTag(filepath string) error {
 	data, err := os.ReadFile(filepath)
 	if err != nil {
 		fmt.Print(err)
@@ -257,16 +255,16 @@ func (FT *FrozenTrie) LoadTag(filepath string) error {
 		indata := obj[key].(map[string]interface{})
 		var index = int(indata["value"].(float64))
 		var data = indata["uname"].(string)
-		FT.rflags[index] = data
+		ft.rflags[index] = data
 
-		FT.fdata[key] = indata
+		ft.fdata[key] = indata
 	}
 	return nil
 }
 
-func (FT *FrozenTrie) FlagstoTag(flags []uint32) []string {
+func (ft *FrozenTrie) FlagstoTag(flags []uint32) []string {
 	values := []string{}
-	if len(FT.rflags) <= 0 || len(flags) <= 0 {
+	if len(ft.rflags) <= 0 || len(flags) <= 0 {
 		return values
 	}
 	// flags has to be an array of 16-bit integers.
@@ -303,14 +301,14 @@ func (FT *FrozenTrie) FlagstoTag(flags []uint32) []string {
 				if Debug {
 					fmt.Printf("pos %d  index/tagIndices %d %v j/i %d %d\n", pos, index, tagIndices, j, i)
 				}
-				if pos >= len(FT.rflags) {
+				if pos >= len(ft.rflags) {
 					if Debug {
-						fmt.Printf("pos %d out of bounds in len(rflags) %d\n", pos, len(FT.rflags))
+						fmt.Printf("pos %d out of bounds in len(rflags) %d\n", pos, len(ft.rflags))
 					}
 				} else {
-					v := FT.rflags[pos]
+					v := ft.rflags[pos]
 					if len(v) > 0 {
-						values = append(values, FT.rflags[pos])
+						values = append(values, ft.rflags[pos])
 					}
 				}
 			}
@@ -320,30 +318,30 @@ func (FT *FrozenTrie) FlagstoTag(flags []uint32) []string {
 	return values
 }
 
-func (FT *FrozenTrie) DNlookup(dn string, usr_flag string) (bool, []string) {
+func (ft *FrozenTrie) DNlookup(dn string, usr_flag string) (bool, []string) {
 
-	if FT.usr_flag == "" || FT.usr_flag != usr_flag {
+	if ft.usr_flag == "" || ft.usr_flag != usr_flag {
 		//fmt.Println("User config saved : ")
 		var blocklists []string
 		var err error
 		s := strings.Split(usr_flag, ":")
 		if len(s) > 1 {
-			blocklists, err = FT.decode(s[1], s[0])
+			blocklists, err = ft.decode(s[1], s[0])
 		} else {
-			blocklists, err = FT.decode(usr_flag, "0")
+			blocklists, err = ft.decode(usr_flag, "0")
 		}
 		if err != nil {
 			fmt.Println(err, s)
-			FT.usr_flag = ""
-			FT.usr_bl = nil
+			ft.usr_flag = ""
+			ft.usr_bl = nil
 			return false, nil
 		}
-		FT.usr_bl = blocklists
-		FT.usr_flag = usr_flag
+		ft.usr_bl = blocklists
+		ft.usr_flag = usr_flag
 	}
 
 	// lookup the whole fqdn, ex: a.b.c.tld
-	block, lists := FT.lookupDomain(dn)
+	block, lists := ft.lookupDomain(dn)
 
 	if block {
 		return block, lists
@@ -353,7 +351,7 @@ func (FT *FrozenTrie) DNlookup(dn string, usr_flag string) (bool, []string) {
 	subs := subdomains(dn)
 
 	for _, d := range subs {
-		block, lists = FT.lookupDomain(d)
+		block, lists = ft.lookupDomain(d)
 		if block {
 			break
 		}
@@ -366,18 +364,18 @@ func (FT *FrozenTrie) DNlookup(dn string, usr_flag string) (bool, []string) {
 	return block, lists
 }
 
-func (FT *FrozenTrie) lookupDomain(dn string) (bool, []string) {
+func (ft *FrozenTrie) lookupDomain(dn string) (bool, []string) {
 
 	dn = strings.TrimSpace(dn)
-	bvalue := FT.bcache.Get(dn)
-	fvalue := FT.fcache.Get(dn)
+	bvalue := ft.bcache.Get(dn)
+	fvalue := ft.fcache.Get(dn)
 	var blfname []string
 	var retlist []string
 	var found = false
 	if bvalue != nil {
 		// fmt.Printf("Return frm B-Cache : %s blacklist %s\n", blfname, FT.usr_bl)
 		blfname = strings.Split(bvalue.(string), "-")
-		found, retlist = Find_Lista_Listb(FT.usr_bl, blfname)
+		found, retlist = Find_Lista_Listb(ft.usr_bl, blfname)
 		return found, retlist
 	}
 	if fvalue != nil {
@@ -389,32 +387,36 @@ func (FT *FrozenTrie) lookupDomain(dn string) (bool, []string) {
 	var tag = []string{}
 	var status bool
 	str_uint8, _ := TxtEncode(dn)
-	status, arr = FT.lookup(str_uint8)
+	status, arr = ft.lookup(str_uint8)
 	if status && len(arr) > 0 {
-		tag = FT.FlagstoTag(arr)
+		tag = ft.FlagstoTag(arr)
 
 		//fmt.Printf("Return frm lookup and flagtotag : %d\n", len(tag))
-		found, retlist = Find_Lista_Listb(FT.usr_bl, tag)
+		found, retlist = Find_Lista_Listb(ft.usr_bl, tag)
 
-		FT.bcache.Set(dn, strings.Join(tag, "-"))
+		ft.bcache.Set(dn, strings.Join(tag, "-"))
 		//fmt.Println("Add to B-Cache lenght : ",*FT.blen)
 		return found, retlist
 	} else {
-		FT.fcache.Set(dn, "")
+		ft.fcache.Set(dn, "")
 		//fmt.Println("Add to F-Cache lenght : ",*FT.flen)
 		return found, retlist
 	}
 }
 
-func (FT *FrozenTrie) CreateUrlEncodedflag(fl []string) string {
+func (ft *FrozenTrie) Lookup(word []uint8) (bool, []uint32) {
+	return ft.lookup(word)
+}
+
+func (ft *FrozenTrie) CreateUrlEncodedflag(fl []string) string {
 	var val = 0
 	var res = ""
 	for _, flag := range fl {
-		indata := FT.fdata[flag].(map[string]interface{})
+		indata := ft.fdata[flag].(map[string]any)
 		//fmt.Println(indata)
 		val = int(indata["value"].(float64))
 		//header := 0
-		index := ((val / 16) | 0)
+		index := (val / 16)
 		pos := val % 16
 		dataIndex1 := 0
 		h := 0
@@ -462,14 +464,14 @@ func (FT *FrozenTrie) CreateUrlEncodedflag(fl []string) string {
 	return url.QueryEscape(b64.StdEncoding.EncodeToString([]byte(res)))
 }
 
-func (FT *FrozenTrie) Urlenc_to_flag(str string) []string {
+func (ft *FrozenTrie) Urlenc_to_flag(str string) []string {
 	str, _ = url.QueryUnescape(str)
 	buf, _ := b64.StdEncoding.DecodeString(str)
 	str = string(buf)
-	return FT.FlagstoTag(Flag_to_uint(str))
+	return ft.FlagstoTag(Flag_to_uint(str))
 }
 
-func (FT *FrozenTrie) decode(stamp string, ver string) (tags []string, err error) {
+func (ft *FrozenTrie) decode(stamp string, ver string) (tags []string, err error) {
 	decoder := b64.StdEncoding
 	if ver == "0" {
 		stamp, err = url.QueryUnescape(stamp)
@@ -477,7 +479,7 @@ func (FT *FrozenTrie) decode(stamp string, ver string) (tags []string, err error
 		stamp, err = url.PathUnescape(stamp)
 		decoder = b64.URLEncoding
 	} else {
-		err = fmt.Errorf("version does not exist", ver)
+		err = fmt.Errorf("version does not exist: %s", ver)
 	}
 
 	if err != nil {
@@ -497,10 +499,10 @@ func (FT *FrozenTrie) decode(stamp string, ver string) (tags []string, err error
 		u16 = bytestouint(buf)
 	}
 	//fmt.Println("%s %v", ver, u16)
-	return FT.flagstotag(u16)
+	return ft.flagstotag(u16)
 }
 
-func (FT *FrozenTrie) flagstotag(flags []uint16) ([]string, error) {
+func (ft *FrozenTrie) flagstotag(flags []uint16) ([]string, error) {
 	// flags has to be an array of 16-bit integers.
 
 	// first index always contains the header
@@ -551,12 +553,12 @@ func (FT *FrozenTrie) flagstotag(flags []uint16) ([]string, error) {
 				pos := (index * 16) + j
 				// from the decimal value which is its
 				// blocklist-id, fetch its metadata
-				if pos >= len(FT.rflags) {
+				if pos >= len(ft.rflags) {
 					if Debug {
-						fmt.Printf("pos %d out of bounds in len(rflags) %d\n", pos, len(FT.rflags))
+						fmt.Printf("pos %d out of bounds in len(rflags) %d\n", pos, len(ft.rflags))
 					}
 				} else {
-					values = append(values, FT.rflags[pos])
+					values = append(values, ft.rflags[pos])
 				}
 			}
 			mask = mask >> 1
@@ -592,8 +594,4 @@ func subdomains(target string) []string {
 		l = append(l, target)
 	}
 	return l
-}
-
-func (FT *FrozenTrie) Lookup(word []uint8) (bool, []uint32) {
-	return FT.lookup(word)
 }
