@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"unsafe"
@@ -14,20 +15,20 @@ var W = 16
 var L1 = 32 * 32
 var L2 = 32
 
-func Build(tdpath, rdpath, bcpath, ftpath string) (FT *FrozenTrie, err error) {
-	td16, td8, err := read_file_u16(tdpath)
+func Build(tdpath, rdpath, bcpath, ftpath string) (ftrie *FrozenTrie, err error) {
+	td16, td8, err := readBinary(tdpath)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	rd16, rd8, err := read_file_u16(rdpath)
+	rd16, rd8, err := readBinary(rdpath)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	bconfig, err := LoadBasicConfig(bcpath)
+	bconfig, err := readBasicConfig(bcpath)
 	if err != nil {
 		return
 	}
@@ -38,17 +39,23 @@ func Build(tdpath, rdpath, bcpath, ftpath string) (FT *FrozenTrie, err error) {
 	rdmd5hex := MD5Hex(rd8)
 	tdmd5, _ := bconfig["tdmd5"].(string)
 	rdmd5, _ := bconfig["rdmd5"].(string)
-	fmt.Printf("md5(TD): %s <-> %s | md5(RD): %s <-> %s | nc: %d\n", tdmd5hex, tdmd5, rdmd5hex, rdmd5, nodecount)
+	hstatus := fmt.Sprintf("md5 mismatch: %s <-> %s | %s <-> %s", tdmd5hex, tdmd5, rdmd5hex, rdmd5)
+
+	if tdmd5hex != tdmd5 || rdmd5hex != rdmd5 {
+		fmt.Println(hstatus)
+		err = errors.New(hstatus)
+		return
+	}
 
 	rdb := NewBStr(rd16)
 	tdb := NewBStr(td16)
-	RD := NewRankDir(rdb, tdb, nodecount*2+1, L1, L2)
-	FT = NewFrozenTrie(tdb, RD, nodecount, ftpath)
+	rdir := NewRankDir(rdb, tdb, nodecount*2+1, L1, L2)
+	ftrie = NewFrozenTrie(tdb, rdir, nodecount, ftpath)
 
 	return
 }
 
-func read_file_u16(path string) (*[]uint16, *[]byte, error) {
+func readBinary(path string) (*[]uint16, *[]byte, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		fmt.Println("err read file : build.go -> read_file_u16()")
@@ -72,7 +79,7 @@ func read_file_u16(path string) (*[]uint16, *[]byte, error) {
 	return &tmp16, &content, nil
 }
 
-func LoadBasicConfig(filepath string) (map[string]any, error) {
+func readBasicConfig(filepath string) (map[string]any, error) {
 	data, err := os.ReadFile(filepath)
 	if err != nil {
 		fmt.Print(err)
