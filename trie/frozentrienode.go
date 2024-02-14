@@ -11,6 +11,10 @@ type FrozenTrieNode struct {
 	fcCached, chCached               *int
 }
 
+func (ftn *FrozenTrieNode) String() string {
+	return fmt.Sprintf("idx: %d, char: %d, fin? %t, wh: %d, cz? %t, flag? %t, first: %d, next: %d, children: %d, val: %v", ftn.index, ftn.letter(), ftn.final(), ftn.where(), ftn.compressed(), ftn.flag(), ftn.firstChild(), ftn.childOfNextNode(), ftn.childCount(), ftn.value())
+}
+
 func NewFrozenTrieNode(ft *FrozenTrie, index int) *FrozenTrieNode {
 	ftn := &FrozenTrieNode{
 		trie:  ft,

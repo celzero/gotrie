@@ -27,16 +27,21 @@ func (bs *BStr) Size() int {
 
 func (bs *BStr) get(p int, n int, debug bool) uint32 {
 	bb := *bs.bytes
+	mask := uint16(0)
+	if v, ok := MaskTop[W]; ok && len(v) > p%W {
+		mask = v[p%W]
+	}
+
 	if (p%W)+n <= W {
-		return uint32((bb[p/W] & MaskTop[W][p%W]) >> (W - (p % W) - n))
+		return uint32((bb[p/W] & mask) >> (W - (p % W) - n))
 		// case 2: bits lie incompletely in the given byte
 	} else {
 		var result uint32
 		var l int
-		result = uint32(bb[p/W] & MaskTop[W][p%W])
+		result = uint32(bb[p/W] & mask)
 
 		disp1 := bb[p/W]
-		disp2 := MaskTop[W][p%W]
+		disp2 := mask
 		var res1 = result
 
 		l = W - p%W

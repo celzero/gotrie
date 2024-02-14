@@ -141,7 +141,11 @@ func (c *Cache) increment(e *cacheEntry) {
 		} else {
 			nextPlace = c.freqs.PushFront(li)
 		}
+		if nextPlace == nil { // unexpected
+			return
+		}
 	}
+
 	e.freqNode = nextPlace
 	nextPlace.Value.(*listEntry).entries[e] = 1
 	if currentPlace != nil {

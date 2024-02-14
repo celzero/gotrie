@@ -112,7 +112,6 @@ func (f *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 			if child.compressed() || (prevchild != nil && (prevchild.compressed() && !prevchild.flag())) {
 				var startchild []*FrozenTrieNode
 				var endchild []*FrozenTrieNode
-				var temp *FrozenTrieNode
 				var start = 0
 				var end = 0
 				startchild = append(startchild, child)
@@ -122,7 +121,7 @@ func (f *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 					if i >= maxiters {
 						return false, emptyreturn
 					}
-					temp = node.getChild(probe - start)
+					temp := node.getChild(probe - start)
 					if !temp.compressed() {
 						break
 					}
@@ -157,7 +156,7 @@ func (f *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 							return false, emptyreturn
 						}
 						end = end + 1
-						temp = node.getChild(probe + end)
+						temp := node.getChild(probe + end)
 						endchild = append(endchild, temp)
 						if !temp.compressed() {
 							break
@@ -182,7 +181,10 @@ func (f *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 				for ii, jj := 0, len(startchild)-1; ii < jj; ii, jj = ii+1, jj-1 {
 					startchild[ii], startchild[jj] = startchild[jj], startchild[ii]
 				}
-				var nodes = append(startchild, endchild...)
+				var nodes = startchild
+				if endchild != nil || len(endchild) > 0 {
+					nodes = append(nodes, endchild...)
+				}
 				var comp []uint8
 				for inc := 0; inc < len(nodes); inc++ {
 					comp = append(comp, uint8(nodes[inc].letter()))
@@ -222,10 +224,15 @@ func (f *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 				return false, emptyreturn
 			}
 		}
-		if Debug {
-			fmt.Printf("        next: %d\n", child.letter())
+		if child == nil {
+			fmt.Printf("lookup: child is nil %s; i: %d; hi: %d; lo: %d; node: %s", word, i, high, low, node)
+			return false, emptyreturn
+		} else {
+			if Debug {
+				fmt.Printf("        next: %d\n", child.letter())
+			}
+			node = child
 		}
-		node = child
 	}
 	if node.final() {
 		return node.final(), node.value()
@@ -251,7 +258,7 @@ func (ft *FrozenTrie) LoadTag(filepath string) error {
 	}
 	// FIXME: Change type(rflags) to map
 	//FT.rflags = make([]string, len(obj)+1)
-	for key, _ := range obj {
+	for key := range obj {
 		indata := obj[key].(map[string]interface{})
 		var index = int(indata["value"].(float64))
 		var data = indata["uname"].(string)
@@ -284,7 +291,7 @@ func (ft *FrozenTrie) FlagstoTag(flags []uint32) []string {
 	}
 	// flags.length must be equal to tagIndices.length
 	if len(tagIndices) != (len(flags) - 1) {
-		fmt.Printf("%v %v flags and header mismatch (bug in upsert?)", tagIndices, flags)
+		fmt.Printf("Flagstotag: %v %v flags and header mismatch (bug in upsert?)", tagIndices, flags)
 		return values
 	}
 	for i := 1; i < len(flags); i++ {
@@ -299,11 +306,11 @@ func (ft *FrozenTrie) FlagstoTag(flags []uint32) []string {
 			if (flag & mask) == mask {
 				var pos = (index * 16) + j
 				if Debug {
-					fmt.Printf("pos %d  index/tagIndices %d %v j/i %d %d\n", pos, index, tagIndices, j, i)
+					fmt.Printf("Flagstotag: pos %d  index/tagIndices %d %v j/i %d %d\n", pos, index, tagIndices, j, i)
 				}
 				if pos >= len(ft.rflags) {
 					if Debug {
-						fmt.Printf("pos %d out of bounds in len(rflags) %d\n", pos, len(ft.rflags))
+						fmt.Printf("Flagstotag: pos %d out of bounds in len(rflags) %d\n", pos, len(ft.rflags))
 					}
 				} else {
 					v := ft.rflags[pos]
@@ -424,8 +431,12 @@ func (ft *FrozenTrie) CreateUrlEncodedflag(fl []string) string {
 			h = DEC16(res, 0)
 		}
 
+		mask := uint16(0)
+		if v, ok := MaskBottom[16]; ok && len(v) > 16-index && 16-index > 0 {
+			mask = v[16-index]
+		}
 		//fmt.Println("Mask Bottom : ",uint(FT.data.MaskBottom[16][16 - index]))
-		dataIndex := CountSetBits(h&int(MaskBottom[16][16-index])) + 1
+		dataIndex := CountSetBits(h&int(mask)) + 1
 
 		n := 0
 		if ((h >> (15 - index)) & 0x1) != 1 {
@@ -504,16 +515,22 @@ func (ft *FrozenTrie) decode(stamp string, ver string) (tags []string, err error
 
 func (ft *FrozenTrie) flagstotag(flags []uint16) ([]string, error) {
 	// flags has to be an array of 16-bit integers.
+	if len(flags) <= 0 {
+		err := fmt.Errorf("flagstotag: zero len flags")
+		return nil, err
+	}
+	if len(ft.rflags) <= 0 { // unlikely
+		err := fmt.Errorf("flagstotag: unexpected zero len blocklist")
+		return nil, err
+	}
 
 	// first index always contains the header
 	header := uint16(flags[0])
 	// store of each big-endian position of set bits in header
 	tagIndices := []int{}
 	values := []string{}
-	var mask uint16
-
 	// b1000,0000,0000,0000
-	mask = 0x8000
+	mask := uint16(0x8000)
 
 	// read first 16 header bits from msb to lsb
 	// and capture indices of set bits in tagIndices
@@ -529,7 +546,7 @@ func (ft *FrozenTrie) flagstotag(flags []uint16) ([]string, error) {
 	// the number of set bits in header must correspond to total
 	// blocklist "flags" excluding the header at position 0
 	if len(tagIndices) != (len(flags) - 1) {
-		err := fmt.Errorf("%v %v flags and header mismatch", tagIndices, flags)
+		err := fmt.Errorf("flagstotag: %v %v flags and header mismatch", tagIndices, flags)
 		return nil, err
 	}
 
@@ -555,7 +572,7 @@ func (ft *FrozenTrie) flagstotag(flags []uint16) ([]string, error) {
 				// blocklist-id, fetch its metadata
 				if pos >= len(ft.rflags) {
 					if Debug {
-						fmt.Printf("pos %d out of bounds in len(rflags) %d\n", pos, len(ft.rflags))
+						fmt.Printf("flagstotag: pos %d out of bounds in len(rflags) %d\n", pos, len(ft.rflags))
 					}
 				} else {
 					values = append(values, ft.rflags[pos])
