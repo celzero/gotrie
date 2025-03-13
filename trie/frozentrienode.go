@@ -18,7 +18,7 @@ type FrozenTrieNode struct {
 }
 
 func (ftn *FrozenTrieNode) String() string {
-	return fmt.Sprintf("idx: %d, char: %d, fin? %t, wh: %d, cz? %t, flag? %t, first: %d, next: %d, children: %d, val: %v", ftn.index, ftn.letter(), ftn.final(), ftn.where(), ftn.compressed(), ftn.flag(), ftn.firstChild(), ftn.childOfNextNode(), ftn.childCount(), ftn.value())
+	return fmt.Sprintf("trie: idx: %d, char: %d, fin? %t, wh: %d, cz? %t, flag? %t, first: %d, next: %d, children: %d, val: %v", ftn.index, ftn.letter(), ftn.final(), ftn.where(), ftn.compressed(), ftn.flag(), ftn.firstChild(), ftn.childOfNextNode(), ftn.childCount(), ftn.value())
 }
 
 func NewFrozenTrieNode(ft *FrozenTrie, index int) *FrozenTrieNode {
@@ -27,14 +27,14 @@ func NewFrozenTrieNode(ft *FrozenTrie, index int) *FrozenTrieNode {
 		index: index,
 	}
 	if Debug {
-		fmt.Printf("%d :i, fc: %d tl: %d c: %t f: %t wh: %d flag: %t\n", ftn.index, ftn.firstChild(), ftn.letter(), ftn.compressed(), ftn.final(), ftn.where(), ftn.flag())
+		fmt.Printf("trie: %d :i, fc: %d tl: %d c: %t f: %t wh: %d flag: %t\n", ftn.index, ftn.firstChild(), ftn.letter(), ftn.compressed(), ftn.final(), ftn.where(), ftn.flag())
 	}
 	return ftn
 }
 
 func (ftn *FrozenTrieNode) final() bool {
 	if ftn.finCached == nil {
-		tmp := (ftn.trie.data.get(ftn.trie.letterStart+(ftn.index*ftn.trie.bitslen)+ftn.trie.extraBit, 1, false) == 1)
+		tmp := (ftn.trie.data.get(ftn.trie.letterStart+(ftn.index*ftn.trie.bitslen)+ftn.trie.extraBit, 1) == 1)
 		ftn.finCached = &tmp
 	}
 	return *ftn.finCached
@@ -42,7 +42,7 @@ func (ftn *FrozenTrieNode) final() bool {
 
 func (ftn *FrozenTrieNode) where() uint32 {
 	if ftn.whCached == nil {
-		tmp := ftn.trie.data.get(ftn.trie.letterStart+(ftn.index*ftn.trie.bitslen)+1+ftn.trie.extraBit, ftn.trie.bitslen-1-ftn.trie.extraBit, false)
+		tmp := ftn.trie.data.get(ftn.trie.letterStart+(ftn.index*ftn.trie.bitslen)+1+ftn.trie.extraBit, ftn.trie.bitslen-1-ftn.trie.extraBit)
 		ftn.whCached = &tmp
 	}
 	return *ftn.whCached
@@ -50,7 +50,7 @@ func (ftn *FrozenTrieNode) where() uint32 {
 
 func (ftn *FrozenTrieNode) compressed() bool {
 	if ftn.comCached == nil {
-		tmp := (ftn.trie.data.get(ftn.trie.letterStart+(ftn.index*ftn.trie.bitslen), 1, false) == 1) //(config.compress && !config.unroll)
+		tmp := (ftn.trie.data.get(ftn.trie.letterStart+(ftn.index*ftn.trie.bitslen), 1) == 1)
 		ftn.comCached = &tmp
 	}
 	return *ftn.comCached

@@ -100,8 +100,8 @@ func TxtEncode(str string) ([]uint8, error) {
 	tmp_u8 := make([]uint8, len(strbytes))
 	err := binary.Read(r, binary.LittleEndian, &tmp_u8)
 	if err != nil {
-		fmt.Println("Error At byte to uint16 conversion : common.go -> TxtEncode()")
-		return nil, err
+		return nil, fmt.Errorf("trie: err TxtEncode: %v", err)
+
 	}
 
 	for i, j := 0, len(tmp_u8)-1; i < j; i, j = i+1, j-1 {
@@ -114,10 +114,14 @@ func TxtEncode(str string) ([]uint8, error) {
 func Find_Lista_Listb(list1 []string, list2 []string) (bool, []string) {
 	retlist := []string{}
 	if len(list1) <= 0 || len(list2) <= 0 {
-		// fmt.Printf("return false and empty retlist\n")
+		if Debug {
+			fmt.Println("return false and empty retlist")
+		}
 		return false, retlist
 	}
-	//fmt.Printf("----list len %d %d\n",len(list1), len(list2))
+	if Debug {
+		fmt.Printf("----list len %d %d\n", len(list1), len(list2))
+	}
 
 	found := false
 	for _, value := range list1 {
@@ -164,7 +168,7 @@ func bytesToUint16(bptr *[]byte) *[]uint16 {
 		return nil
 	}
 	if l%2 != 0 {
-		fmt.Printf("bytesToUint16: len(%d) mod 2 != 0\n", l)
+		fmt.Printf("trie: bytesToUint16: len(%d) mod 2 != 0\n", l)
 	}
 
 	sz := l / 2

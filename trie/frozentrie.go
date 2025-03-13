@@ -37,7 +37,7 @@ type FrozenTrie struct {
 }
 
 func (f *FrozenTrie) Sizes() string {
-	return fmt.Sprintf("ft: %d, td: %d, rd: %d\n", unsafe.Sizeof(f), unsafe.Sizeof(f.data), unsafe.Sizeof(f.directory))
+	return fmt.Sprintf("trie: ft: %d, td: %d, rd: %d\n", unsafe.Sizeof(f), unsafe.Sizeof(f.data), unsafe.Sizeof(f.directory))
 }
 
 func NewFrozenTrie(td *BStr, rdir *RankDirectory, nodeCount int, tagfile string) *FrozenTrie {
@@ -231,7 +231,8 @@ func (f *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 			}
 		}
 		if child == nil {
-			fmt.Printf("lookup: child is nil %s; i: %d; hi: %d; lo: %d; node: %s", word, i, high, low, node)
+			fmt.Printf("trie: lookup: child is nil %s; i: %d; hi: %d; lo: %d; node: %s",
+				word, i, high, low, node)
 			return false, emptyreturn
 		} else {
 			if Debug {
@@ -249,18 +250,16 @@ func (f *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 func (ft *FrozenTrie) LoadTag(filepath string) error {
 	data, err := os.ReadFile(filepath)
 	if err != nil {
-		fmt.Print(err)
-		return err
+		return fmt.Errorf("trie: loadtag read err: %v", err)
 	}
 
-	var obj map[string]interface{}
+	var obj map[string]any
 	err = json.Unmarshal(data, &obj)
 	if len(obj) <= 0 {
-		err = fmt.Errorf("zero len blocklist json")
+		err = fmt.Errorf("trie: zero len blocklist json")
 	}
 	if err != nil {
-		fmt.Println("error:", err)
-		return err
+		return fmt.Errorf("trie: loadtag json err: %v", err)
 	}
 	// FIXME: Change type(rflags) to map
 	//FT.rflags = make([]string, len(obj)+1)
@@ -285,7 +284,9 @@ func (ft *FrozenTrie) FlagstoTag(flags []uint32) []string {
 	tagIndices := []int{}
 	var mask uint16
 	mask = 0x8000
-	//fmt.Println(FT.rflags)
+	if Debug {
+		fmt.Println("trie", ft.rflags)
+	}
 	for i := 0; i < 16; i++ {
 		if (header << i) == 0 {
 			break
@@ -297,7 +298,7 @@ func (ft *FrozenTrie) FlagstoTag(flags []uint32) []string {
 	}
 	// flags.length must be equal to tagIndices.length
 	if len(tagIndices) != (len(flags) - 1) {
-		fmt.Printf("Flagstotag: %v %v flags and header mismatch (bug in upsert?)", tagIndices, flags)
+		fmt.Printf("trie: flagstotag: %v %v flags and header mismatch (bug in upsert?)\n", tagIndices, flags)
 		return values
 	}
 	for i := 1; i < len(flags); i++ {
@@ -312,11 +313,13 @@ func (ft *FrozenTrie) FlagstoTag(flags []uint32) []string {
 			if (flag & mask) == mask {
 				var pos = (index * 16) + j
 				if Debug {
-					fmt.Printf("Flagstotag: pos %d  index/tagIndices %d %v j/i %d %d\n", pos, index, tagIndices, j, i)
+					fmt.Printf("trie: flagstotag: pos %d  index/tagIndices %d %v j/i %d %d\n",
+						pos, index, tagIndices, j, i)
 				}
 				if pos >= len(ft.rflags) {
 					if Debug {
-						fmt.Printf("Flagstotag: pos %d out of bounds in len(rflags) %d\n", pos, len(ft.rflags))
+						fmt.Printf("trie: flagstotag: pos %d out of bounds in len(rflags) %d\n",
+							pos, len(ft.rflags))
 					}
 				} else {
 					v := ft.rflags[pos]
@@ -334,7 +337,9 @@ func (ft *FrozenTrie) FlagstoTag(flags []uint32) []string {
 func (ft *FrozenTrie) DNlookup(dn string, usr_flag string) (bool, []string) {
 
 	if ft.usr_flag == "" || ft.usr_flag != usr_flag {
-		//fmt.Println("User config saved : ")
+		if Debug {
+			fmt.Println("trie: flag saved: ", ft.usr_flag)
+		}
 		var blocklists []string
 		var err error
 		s := strings.Split(usr_flag, ":")
@@ -344,7 +349,7 @@ func (ft *FrozenTrie) DNlookup(dn string, usr_flag string) (bool, []string) {
 			blocklists, err = ft.decode(usr_flag, "0")
 		}
 		if err != nil {
-			fmt.Println(err, s)
+			fmt.Println("trie", err, s)
 			ft.usr_flag = ""
 			ft.usr_bl = nil
 			return false, nil
@@ -496,7 +501,7 @@ func (ft *FrozenTrie) decode(stamp string, ver string) (tags []string, err error
 		stamp, err = url.PathUnescape(stamp)
 		decoder = b64.URLEncoding
 	} else {
-		err = fmt.Errorf("version does not exist: %s", ver)
+		err = fmt.Errorf("trie: version does not exist: %s", ver)
 	}
 
 	if err != nil {
@@ -522,11 +527,11 @@ func (ft *FrozenTrie) decode(stamp string, ver string) (tags []string, err error
 func (ft *FrozenTrie) flagstotag(flags []uint16) ([]string, error) {
 	// flags has to be an array of 16-bit integers.
 	if len(flags) <= 0 {
-		err := fmt.Errorf("flagstotag: zero len flags")
+		err := fmt.Errorf("trie: flagstotag: zero len flags")
 		return nil, err
 	}
 	if len(ft.rflags) <= 0 { // unlikely
-		err := fmt.Errorf("flagstotag: unexpected zero len blocklist")
+		err := fmt.Errorf("trie: flagstotag: unexpected zero len blocklist")
 		return nil, err
 	}
 
@@ -552,8 +557,8 @@ func (ft *FrozenTrie) flagstotag(flags []uint16) ([]string, error) {
 	// the number of set bits in header must correspond to total
 	// blocklist "flags" excluding the header at position 0
 	if len(tagIndices) != (len(flags) - 1) {
-		err := fmt.Errorf("flagstotag: %v %v flags and header mismatch", tagIndices, flags)
-		return nil, err
+		return nil, fmt.Errorf("trie: flagstotag: %v %v flags and header mismatch",
+			tagIndices, flags)
 	}
 
 	// for all blocklist flags excluding the header
@@ -578,7 +583,8 @@ func (ft *FrozenTrie) flagstotag(flags []uint16) ([]string, error) {
 				// blocklist-id, fetch its metadata
 				if pos >= len(ft.rflags) {
 					if Debug {
-						fmt.Printf("flagstotag: pos %d out of bounds in len(rflags) %d\n", pos, len(ft.rflags))
+						fmt.Printf("trie: flagstotag: pos %d out of bounds in len(rflags) %d\n",
+							pos, len(ft.rflags))
 					}
 				} else {
 					values = append(values, ft.rflags[pos])

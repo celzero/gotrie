@@ -42,21 +42,21 @@ func NewRankDir(rd, td *BStr, numBits int, l1Size int, l2Size int) *RankDirector
 }
 
 func (RD *RankDirectory) display() {
-	fmt.Println("sz(rd): ", RD.Directory.Size())
-	fmt.Println("sz(td): ", RD.Data.Size())
-	fmt.Println("numBits: ", RD.numBits)
-	fmt.Println("L1size: ", RD.l1Size)
-	fmt.Println("l1bits: ", RD.l1Bits)
-	fmt.Println("l2bits: ", RD.l2Bits)
+	fmt.Println("trie: td dir sz: ", RD.Directory.Size())
+	fmt.Println("trie: rd data sz: ", RD.Data.Size())
+	fmt.Println("trie: rd numBits: ", RD.numBits)
+	fmt.Println("trie: rd l1size: ", RD.l1Size)
+	fmt.Println("trie: rd l1bits: ", RD.l1Bits)
+	fmt.Println("trie: rd l2bits: ", RD.l2Bits)
 }
 
-func (rdir *RankDirectory) rank(which, x int) int {
+func (rdir *RankDirectory) rank(_, x int) int {
 	var temp uint32
 	rank := -1
 	sectionPos := 0
 	if x >= rdir.l2Size {
 		sectionPos = (x / rdir.l2Size) * rdir.l1Bits
-		temp = rdir.Directory.get(sectionPos-rdir.l1Bits, rdir.l1Bits, false)
+		temp = rdir.Directory.get(sectionPos-rdir.l1Bits, rdir.l1Bits)
 		rank = int(temp)
 		x = x % rdir.l2Size
 	}
@@ -67,7 +67,8 @@ func (rdir *RankDirectory) rank(which, x int) int {
 		ans = rank
 	}
 	if Debug {
-		fmt.Printf("ans: %d %d:r, x: %d %d:s %d:l1 %t:ifcheck\n", ans, temp, x, sectionPos, rdir.l1Bits, x >= rdir.l2Size)
+		fmt.Printf("trie: ans: %d %d:r, x: %d %d:s %d:l1 %t:ifcheck\n",
+			ans, temp, x, sectionPos, rdir.l1Bits, x >= rdir.l2Size)
 	}
 	return ans
 }

@@ -31,7 +31,9 @@ func (bs *BStr) Size() int {
 	return bs.length
 }
 
-func (bs *BStr) get(p int, n int, debug bool) uint32 {
+func (bs *BStr) get(p int, n int) uint32 {
+	debug := Debug
+
 	bb := *bs.bytes
 	mask := uint16(0)
 	if v, ok := MaskTop[W]; ok && len(v) > p%W {
@@ -79,7 +81,7 @@ func (bs *BStr) pos0(i int, n int) int {
 	step := 16
 	index := i
 	for n > 0 {
-		d := bs.get(i, step, false)
+		d := bs.get(i, step)
 		bits0 := step - CountSetBits(int(d))
 		diff := 0
 		if n-bits0 < 0 {
