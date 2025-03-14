@@ -36,7 +36,7 @@ func (bs *binstr) get(p int, n int) uint32 {
 
 	bb := *bs.bytes
 	mask := uint16(0)
-	if v, ok := maskHi[W]; ok && len(v) > p%W {
+	if v, ok := MaskHi[W]; ok && len(v) > p%W {
 		mask = v[p%W]
 	}
 
@@ -100,60 +100,60 @@ func (bs *binstr) pos0(i int, n int) int {
 	return index
 }
 
-var maskHi = make(map[int][]uint16)
-var maskLo = make(map[int][]uint16)
-var bitsetTable256 [256]int
+var MaskHi = make(map[int][]uint16)
+var MaskLo = make(map[int][]uint16)
+var BitsetTable256 [256]int
 
 func countSetBits(n int) int {
-	return (bitsetTable256[n&0xff] +
-		bitsetTable256[(n>>8)&0xff] +
-		bitsetTable256[(n>>16)&0xff] +
-		bitsetTable256[n>>24])
+	return (BitsetTable256[n&0xff] +
+		BitsetTable256[(n>>8)&0xff] +
+		BitsetTable256[(n>>16)&0xff] +
+		BitsetTable256[n>>24])
 }
 
 func init() {
 	// W is set to 16
-	maskHi[16] = []uint16{}
-	maskHi[16] = append(maskHi[16], 0xffff)
-	maskHi[16] = append(maskHi[16], 0x7fff)
-	maskHi[16] = append(maskHi[16], 0x3fff)
-	maskHi[16] = append(maskHi[16], 0x1fff)
-	maskHi[16] = append(maskHi[16], 0x0fff)
-	maskHi[16] = append(maskHi[16], 0x07ff)
-	maskHi[16] = append(maskHi[16], 0x03ff)
-	maskHi[16] = append(maskHi[16], 0x01ff)
-	maskHi[16] = append(maskHi[16], 0x00ff)
-	maskHi[16] = append(maskHi[16], 0x007f)
-	maskHi[16] = append(maskHi[16], 0x003f)
-	maskHi[16] = append(maskHi[16], 0x001f)
-	maskHi[16] = append(maskHi[16], 0x000f)
-	maskHi[16] = append(maskHi[16], 0x0007)
-	maskHi[16] = append(maskHi[16], 0x0003)
-	maskHi[16] = append(maskHi[16], 0x0001)
-	maskHi[16] = append(maskHi[16], 0x0000)
+	MaskHi[16] = []uint16{}
+	MaskHi[16] = append(MaskHi[16], 0xffff)
+	MaskHi[16] = append(MaskHi[16], 0x7fff)
+	MaskHi[16] = append(MaskHi[16], 0x3fff)
+	MaskHi[16] = append(MaskHi[16], 0x1fff)
+	MaskHi[16] = append(MaskHi[16], 0x0fff)
+	MaskHi[16] = append(MaskHi[16], 0x07ff)
+	MaskHi[16] = append(MaskHi[16], 0x03ff)
+	MaskHi[16] = append(MaskHi[16], 0x01ff)
+	MaskHi[16] = append(MaskHi[16], 0x00ff)
+	MaskHi[16] = append(MaskHi[16], 0x007f)
+	MaskHi[16] = append(MaskHi[16], 0x003f)
+	MaskHi[16] = append(MaskHi[16], 0x001f)
+	MaskHi[16] = append(MaskHi[16], 0x000f)
+	MaskHi[16] = append(MaskHi[16], 0x0007)
+	MaskHi[16] = append(MaskHi[16], 0x0003)
+	MaskHi[16] = append(MaskHi[16], 0x0001)
+	MaskHi[16] = append(MaskHi[16], 0x0000)
 
-	maskLo[16] = []uint16{}
-	maskLo[16] = append(maskLo[16], 0xffff)
-	maskLo[16] = append(maskLo[16], 0xfffe)
-	maskLo[16] = append(maskLo[16], 0xfffc)
-	maskLo[16] = append(maskLo[16], 0xfff8)
-	maskLo[16] = append(maskLo[16], 0xfff0)
-	maskLo[16] = append(maskLo[16], 0xffe0)
-	maskLo[16] = append(maskLo[16], 0xffc0)
-	maskLo[16] = append(maskLo[16], 0xff80)
-	maskLo[16] = append(maskLo[16], 0xff00)
-	maskLo[16] = append(maskLo[16], 0xfe00)
-	maskLo[16] = append(maskLo[16], 0xfc00)
-	maskLo[16] = append(maskLo[16], 0xf800)
-	maskLo[16] = append(maskLo[16], 0xf000)
-	maskLo[16] = append(maskLo[16], 0xe000)
-	maskLo[16] = append(maskLo[16], 0xc000)
-	maskLo[16] = append(maskLo[16], 0x8000)
-	maskLo[16] = append(maskLo[16], 0x0000)
+	MaskLo[16] = []uint16{}
+	MaskLo[16] = append(MaskLo[16], 0xffff)
+	MaskLo[16] = append(MaskLo[16], 0xfffe)
+	MaskLo[16] = append(MaskLo[16], 0xfffc)
+	MaskLo[16] = append(MaskLo[16], 0xfff8)
+	MaskLo[16] = append(MaskLo[16], 0xfff0)
+	MaskLo[16] = append(MaskLo[16], 0xffe0)
+	MaskLo[16] = append(MaskLo[16], 0xffc0)
+	MaskLo[16] = append(MaskLo[16], 0xff80)
+	MaskLo[16] = append(MaskLo[16], 0xff00)
+	MaskLo[16] = append(MaskLo[16], 0xfe00)
+	MaskLo[16] = append(MaskLo[16], 0xfc00)
+	MaskLo[16] = append(MaskLo[16], 0xf800)
+	MaskLo[16] = append(MaskLo[16], 0xf000)
+	MaskLo[16] = append(MaskLo[16], 0xe000)
+	MaskLo[16] = append(MaskLo[16], 0xc000)
+	MaskLo[16] = append(MaskLo[16], 0x8000)
+	MaskLo[16] = append(MaskLo[16], 0x0000)
 
-	bitsetTable256[0] = 0
+	BitsetTable256[0] = 0
 	for i := range 256 {
 		j := int(float64(i / 2)) // j = i >> 1
-		bitsetTable256[i] = (i & 1) + bitsetTable256[j]
+		BitsetTable256[i] = (i & 1) + BitsetTable256[j]
 	}
 }
