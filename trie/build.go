@@ -87,7 +87,7 @@ func Build(tdpath, rdpath, bcpath, ftpath string, rk ReadKind) (ftrie *FrozenTri
 		}, []*[]byte{td8, rd8})
 	}
 
-	fmt.Println("trie: td loadtime: ", tdelapsed, "rd loadtime: ", rdelapsed, "rk: ", rk)
+	fmt.Println("trie: td loadtime:", tdelapsed, "rd loadtime:", rdelapsed, "rk:", rk)
 
 	return
 }

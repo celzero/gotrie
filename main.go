@@ -26,7 +26,7 @@ func main() {
 	wg.Wait()
 }
 
-const usemmap = false
+const usemmap = trie.Fmmap
 
 func loadbuild(wg *sync.WaitGroup) {
 	defer wg.Done()
