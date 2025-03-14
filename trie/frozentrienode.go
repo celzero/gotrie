@@ -26,7 +26,7 @@ func NewFrozenTrieNode(ft *FrozenTrie, index int) *FrozenTrieNode {
 		trie:  ft,
 		index: index,
 	}
-	if Debug {
+	if debug {
 		fmt.Printf("trie: %d :i, fc: %d tl: %d c: %t f: %t wh: %d flag: %t\n", ftn.index, ftn.firstChild(), ftn.letter(), ftn.compressed(), ftn.final(), ftn.where(), ftn.flag())
 	}
 	return ftn

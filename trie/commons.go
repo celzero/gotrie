@@ -47,7 +47,6 @@ func bit0p(n int, p int) map[string]int {
 	} else {
 		ret["index"] = 0
 	}
-	//console.log("      ", String.fromCharCode(m).charCodeAt(0).toString(2), m, i, p, c);
 	return ret
 }
 
@@ -66,15 +65,15 @@ func Bit0(n int, p int, pad int) int {
 	}
 }
 
-func DEC16(str string, index int) int {
+func dec16(str string, index int) int {
 	res := int([]rune(str)[index])
 	return res
 }
-func CHR16(charcode int) string {
+func chr16(charcode int) string {
 	return string(charcode)
 }
 
-func FlagSubstring(str string, si int, ei int) string {
+func flagSubstr(str string, si int, ei int) string {
 	res := []rune(str)
 	resstr := ""
 	if ei == 0 {
@@ -85,7 +84,7 @@ func FlagSubstring(str string, si int, ei int) string {
 	return resstr
 }
 
-func Flag_to_uint(str string) []uint32 {
+func flagstrToUint32(str string) []uint32 {
 	runedata := []rune(str)
 	resp := make([]uint32, len(runedata))
 	for key, value := range runedata {
@@ -94,32 +93,32 @@ func Flag_to_uint(str string) []uint32 {
 	return resp
 }
 
-func TxtEncode(str string) ([]uint8, error) {
+func encodeText(str string) ([]uint8, error) {
 	strbytes := []byte(str)
 	r := bytes.NewReader(strbytes)
-	tmp_u8 := make([]uint8, len(strbytes))
-	err := binary.Read(r, binary.LittleEndian, &tmp_u8)
+	u8 := make([]uint8, len(strbytes))
+	err := binary.Read(r, binary.LittleEndian, &u8)
 	if err != nil {
 		return nil, fmt.Errorf("trie: err TxtEncode: %v", err)
 
 	}
 
-	for i, j := 0, len(tmp_u8)-1; i < j; i, j = i+1, j-1 {
-		tmp_u8[i], tmp_u8[j] = tmp_u8[j], tmp_u8[i]
+	for i, j := 0, len(u8)-1; i < j; i, j = i+1, j-1 {
+		u8[i], u8[j] = u8[j], u8[i]
 	}
 
-	return tmp_u8, nil
+	return u8, nil
 }
 
-func Find_Lista_Listb(list1 []string, list2 []string) (bool, []string) {
+func dupElems(list1 []string, list2 []string) (bool, []string) {
 	retlist := []string{}
 	if len(list1) <= 0 || len(list2) <= 0 {
-		if Debug {
+		if debug {
 			fmt.Println("return false and empty retlist")
 		}
 		return false, retlist
 	}
-	if Debug {
+	if debug {
 		fmt.Printf("----list len %d %d\n", len(list1), len(list2))
 	}
 
@@ -143,21 +142,9 @@ func Find_Lista_Listb(list1 []string, list2 []string) (bool, []string) {
 }
 
 // from: stackoverflow.com/a/25286918
-func MD5Hex(b *[]byte) string {
+func md5hex(b *[]byte) string {
 	hash := md5.Sum(*b)
 	return hex.EncodeToString(hash[:])
-}
-
-// stackoverflow.com/a/74643597
-func castToBytes[T any](t *[]T) []byte {
-	s := *t
-	l := len(s)
-	if l == 0 {
-		return nil
-	}
-
-	sz := int(unsafe.Sizeof(s[0])) * l
-	return unsafe.Slice((*byte)(unsafe.Pointer(&s[0])), sz)
 }
 
 // stackoverflow.com/a/25409018

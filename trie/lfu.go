@@ -18,7 +18,7 @@ type Eviction struct {
 	Value interface{}
 }
 
-type Cache struct {
+type lfu struct {
 	// If len > UpperBound, cache will automatically evict
 	// down to LowerBound.  If either value is 0, this behavior
 	// is disabled.
@@ -42,8 +42,8 @@ type listEntry struct {
 	freq    int
 }
 
-func newLfuCache(hi, lo int) *Cache {
-	c := new(Cache)
+func newLfuCache(hi, lo int) *lfu {
+	c := new(lfu)
 	c.values = make(map[string]*cacheEntry)
 	c.freqs = list.New()
 	c.lock = new(sync.Mutex)
@@ -52,7 +52,7 @@ func newLfuCache(hi, lo int) *Cache {
 	return c
 }
 
-func (c *Cache) Get(key string) interface{} {
+func (c *lfu) Get(key string) interface{} {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	if e, ok := c.values[key]; ok {
@@ -62,7 +62,7 @@ func (c *Cache) Get(key string) interface{} {
 	return nil
 }
 
-func (c *Cache) Set(key string, value interface{}) {
+func (c *lfu) Set(key string, value interface{}) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	if e, ok := c.values[key]; ok {
@@ -86,19 +86,19 @@ func (c *Cache) Set(key string, value interface{}) {
 	}
 }
 
-func (c *Cache) Len() int {
+func (c *lfu) Len() int {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	return c.len
 }
 
-func (c *Cache) Evict(count int) int {
+func (c *lfu) Evict(count int) int {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	return c.evict(count)
 }
 
-func (c *Cache) evict(count int) int {
+func (c *lfu) evict(count int) int {
 	// No lock here so it can be called
 	// from within the lock (during Set)
 	var evicted int
@@ -124,7 +124,7 @@ func (c *Cache) evict(count int) int {
 	return evicted
 }
 
-func (c *Cache) increment(e *cacheEntry) {
+func (c *lfu) increment(e *cacheEntry) {
 	currentPlace := e.freqNode
 	var nextFreq int
 	var nextPlace *list.Element
@@ -161,7 +161,7 @@ func (c *Cache) increment(e *cacheEntry) {
 	}
 }
 
-func (c *Cache) remEntry(place *list.Element, entry *cacheEntry) {
+func (c *lfu) remEntry(place *list.Element, entry *cacheEntry) {
 	entries := place.Value.(*listEntry).entries
 	delete(entries, entry)
 	if len(entries) == 0 {

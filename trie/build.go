@@ -17,18 +17,25 @@ import (
 	"unsafe"
 )
 
-var Debug = false
-var W = 16
-var L1 = 32 * 32
-var L2 = 32
+const (
+	debug = false
+	W     = 16
+	L1    = 32 * 32
+	L2    = 32
+)
 
-func Build(tdpath, rdpath, bcpath, ftpath string, usemmap bool) (ftrie *FrozenTrie, err error) {
-	td16, td8, err := readBinary(tdpath, usemmap)
+type ReadKind bool
+
+const Fmmap ReadKind = true
+const Ffull ReadKind = false
+
+func Build(tdpath, rdpath, bcpath, ftpath string, rk ReadKind) (ftrie *FrozenTrie, err error) {
+	td16, td8, err := readBinary(tdpath, rk)
 	if err != nil {
 		return
 	}
 
-	rd16, rd8, err := readBinary(rdpath, usemmap)
+	rd16, rd8, err := readBinary(rdpath, rk)
 	if err != nil {
 		return
 	}
@@ -40,8 +47,8 @@ func Build(tdpath, rdpath, bcpath, ftpath string, usemmap bool) (ftrie *FrozenTr
 
 	nodecount := int(bconfig["nodecount"].(float64))
 
-	tdmd5hex := MD5Hex(td8)
-	rdmd5hex := MD5Hex(rd8)
+	tdmd5hex := md5hex(td8)
+	rdmd5hex := md5hex(rd8)
 	tdmd5, _ := bconfig["tdmd5"].(string)
 	rdmd5, _ := bconfig["rdmd5"].(string)
 	hstatus := fmt.Sprintf("md5 mismatch: %s <-> %s | %s <-> %s", tdmd5hex, tdmd5, rdmd5hex, rdmd5)
@@ -51,9 +58,9 @@ func Build(tdpath, rdpath, bcpath, ftpath string, usemmap bool) (ftrie *FrozenTr
 		return
 	}
 
-	rdb := NewBStr(rd16)
-	tdb := NewBStr(td16)
-	rdir := NewRankDir(rdb, tdb, nodecount*2+1, L1, L2)
+	rdb := asBinaryString(rd16)
+	tdb := asBinaryString(td16)
+	rdir := newRankDir(rdb, tdb, nodecount*2+1, L1, L2)
 	ftrie = NewFrozenTrie(tdb, rdir, nodecount, ftpath)
 
 	return
@@ -93,9 +100,9 @@ func mmapBinary(path string) (*[]uint16, *[]byte, error) {
 	return bytesToUint16(&data), &data, nil
 }
 
-func readBinary(path string, usemmap bool) (*[]uint16, *[]byte, error) {
+func readBinary(path string, rk ReadKind) (*[]uint16, *[]byte, error) {
 	isLittleEndian := lilbo(false)
-	if usemmap && isLittleEndian {
+	if rk == Fmmap && isLittleEndian {
 		return mmapBinary(path)
 	}
 
@@ -104,8 +111,9 @@ func readBinary(path string, usemmap bool) (*[]uint16, *[]byte, error) {
 		fmt.Println("trie: err read file : build.go -> read_file_u16()")
 		return nil, nil, err
 	}
+	sz := len(content)
 
-	fmt.Printf("trie: read from %s len %d\n", path, len(content))
+	fmt.Printf("trie: read from %s len %d\n", path, sz)
 
 	// works only on little endian machines: go.dev/play/p/50t1HxCr9DV
 	if isLittleEndian {
@@ -113,7 +121,7 @@ func readBinary(path string, usemmap bool) (*[]uint16, *[]byte, error) {
 	}
 
 	r := bytes.NewReader(content)
-	tmp16 := make([]uint16, len(content)/2)
+	tmp16 := make([]uint16, sz/2)
 	err = binary.Read(r, binary.LittleEndian, &tmp16)
 	if err != nil {
 		return nil, nil, fmt.Errorf("trie: err: %v", err)

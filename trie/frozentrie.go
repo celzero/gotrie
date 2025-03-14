@@ -22,38 +22,40 @@ const cachesz = 2100
 const cacheszlo = 2000
 
 type FrozenTrie struct {
-	data        *BStr
-	directory   *RankDirectory
+	data        *binstr
+	directory   *rankdir
 	extraBit    int
 	bitslen     int
 	letterStart int
-	rflags      map[int]string
-	fdata       map[string]any
-	bcache      *Cache
-	fcache      *Cache
 
-	usr_flag string
-	usr_bl   []string
+	rflags map[int]string
+	fdata  map[string]any
+
+	bcache *lfu
+	fcache *lfu
+
+	usrFlag       string
+	usrBlocklists []string
 }
 
 func (f *FrozenTrie) Sizes() string {
 	return fmt.Sprintf("trie: ft: %d, td: %d, rd: %d\n", unsafe.Sizeof(f), unsafe.Sizeof(f.data), unsafe.Sizeof(f.directory))
 }
 
-func NewFrozenTrie(td *BStr, rdir *RankDirectory, nodeCount int, tagfile string) *FrozenTrie {
+func NewFrozenTrie(td *binstr, rdir *rankdir, nodeCount int, tagfile string) *FrozenTrie {
 	extraBit := 1 //(config.compress && !config.unroll) ? 1 : 0;
 	ft := &FrozenTrie{
-		data:        td,
-		directory:   rdir,
-		extraBit:    extraBit,
-		bitslen:     9 + extraBit, //((config.base32) ? 6 : 9) + this.extraBit;
-		letterStart: nodeCount*2 + 1,
-		bcache:      newLfuCache(cachesz, cacheszlo),
-		fcache:      newLfuCache(cachesz, cacheszlo),
-		rflags:      make(map[int]string),
-		fdata:       make(map[string]any),
-		usr_flag:    "",
-		usr_bl:      []string{},
+		data:          td,
+		directory:     rdir,
+		extraBit:      extraBit,
+		bitslen:       9 + extraBit, //((config.base32) ? 6 : 9) + this.extraBit;
+		letterStart:   nodeCount*2 + 1,
+		bcache:        newLfuCache(cachesz, cacheszlo),
+		fcache:        newLfuCache(cachesz, cacheszlo),
+		rflags:        make(map[int]string),
+		fdata:         make(map[string]any),
+		usrFlag:       "",
+		usrBlocklists: []string{},
 	}
 	ft.LoadTag(tagfile)
 	return ft
@@ -88,7 +90,7 @@ func (f *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 			}
 		}
 		var minChild = isFlag
-		if Debug {
+		if debug {
 			fmt.Printf("            count: %d i: %d  w: %d  nl: %d  flag: %d\n", node.getChildCount(), i, word[i], node.letter(), isFlag)
 		}
 		if (node.getChildCount() - 1) <= minChild {
@@ -110,7 +112,7 @@ func (f *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 				prevchild = nil
 			}
 
-			if Debug {
+			if debug {
 				fmt.Printf("            current: %d l: %d h: %d w: %d\n", child.letter(), low, high, word[i])
 				//return false,emptyreturn
 			}
@@ -137,18 +139,18 @@ func (f *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 					startchild = append(startchild, temp)
 					start = start + 1
 				}
-				if Debug {
+				if debug {
 					fmt.Printf("  check: letter : %d  word : %d start: %d\n", startchild[start-1].letter(), word[i], start)
 				}
 
 				if uint8(startchild[start-1].letter()) > word[i] {
-					if Debug {
+					if debug {
 						fmt.Printf("            shrinkh start: %d s: %d w: %d\n", startchild[start-1].letter(), start, word[i])
 					}
 
 					high = probe - start + 1
 					if high-low <= 1 {
-						if Debug {
+						if debug {
 							fmt.Printf("    (high - low ): %d c: %d h: %d l: %d cl: %d w: %d pr: %d\n", (high - low), node.getChildCount(), high, low, child.letter(), word[i], probe)
 						}
 						return false, emptyreturn
@@ -171,12 +173,12 @@ func (f *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 				}
 
 				if uint8(startchild[start-1].letter()) < word[i] {
-					if Debug {
+					if debug {
 						fmt.Printf("            shrinkh start: %d s: %d w: %d\n", startchild[start-1].letter(), start, word[i])
 					}
 					low = probe + end
 					if high-low <= 1 {
-						if Debug {
+						if debug {
 							fmt.Printf("    (high - low ): %d c: %d h: %d l: %d cl: %d w: %d pr: %d\n", (high - low), node.getChildCount(), high, low, child.letter(), word[i], probe)
 						}
 						return false, emptyreturn
@@ -192,7 +194,7 @@ func (f *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 					nodes = append(nodes, endchild...)
 				}
 				var comp []uint8
-				for inc := 0; inc < len(nodes); inc++ {
+				for inc := range nodes {
 					comp = append(comp, uint8(nodes[inc].letter()))
 				}
 
@@ -202,13 +204,13 @@ func (f *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 				}
 				var w = word[i:sliceend]
 
-				if Debug {
+				if debug {
 					fmt.Printf("p: %d comp: %v w: %v\n", probe, comp, w)
 				}
 				if len(w) < len(comp) {
 					return false, emptyreturn
 				}
-				for inc := 0; inc < len(comp); inc++ {
+				for inc := range comp {
 					if w[inc] != comp[inc] {
 						return false, emptyreturn
 					}
@@ -235,7 +237,7 @@ func (f *FrozenTrie) lookup(word []uint8) (bool, []uint32) {
 				word, i, high, low, node)
 			return false, emptyreturn
 		} else {
-			if Debug {
+			if debug {
 				fmt.Printf("        next: %d\n", child.letter())
 			}
 			node = child
@@ -284,10 +286,10 @@ func (ft *FrozenTrie) FlagstoTag(flags []uint32) []string {
 	tagIndices := []int{}
 	var mask uint16
 	mask = 0x8000
-	if Debug {
+	if debug {
 		fmt.Println("trie", ft.rflags)
 	}
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		if (header << i) == 0 {
 			break
 		}
@@ -306,18 +308,18 @@ func (ft *FrozenTrie) FlagstoTag(flags []uint32) []string {
 		var flag = uint16(flags[i])
 		var index = tagIndices[i-1]
 		mask = 0x8000
-		for j := 0; j < 16; j++ {
+		for j := range 16 {
 			if (flag << j) == 0 {
 				break
 			}
 			if (flag & mask) == mask {
 				var pos = (index * 16) + j
-				if Debug {
+				if debug {
 					fmt.Printf("trie: flagstotag: pos %d  index/tagIndices %d %v j/i %d %d\n",
 						pos, index, tagIndices, j, i)
 				}
 				if pos >= len(ft.rflags) {
-					if Debug {
+					if debug {
 						fmt.Printf("trie: flagstotag: pos %d out of bounds in len(rflags) %d\n",
 							pos, len(ft.rflags))
 					}
@@ -336,9 +338,9 @@ func (ft *FrozenTrie) FlagstoTag(flags []uint32) []string {
 
 func (ft *FrozenTrie) DNlookup(dn string, usr_flag string) (bool, []string) {
 
-	if ft.usr_flag == "" || ft.usr_flag != usr_flag {
-		if Debug {
-			fmt.Println("trie: flag saved: ", ft.usr_flag)
+	if ft.usrFlag == "" || ft.usrFlag != usr_flag {
+		if debug {
+			fmt.Println("trie: flag saved: ", ft.usrFlag)
 		}
 		var blocklists []string
 		var err error
@@ -350,12 +352,12 @@ func (ft *FrozenTrie) DNlookup(dn string, usr_flag string) (bool, []string) {
 		}
 		if err != nil {
 			fmt.Println("trie", err, s)
-			ft.usr_flag = ""
-			ft.usr_bl = nil
+			ft.usrFlag = ""
+			ft.usrBlocklists = nil
 			return false, nil
 		}
-		ft.usr_bl = blocklists
-		ft.usr_flag = usr_flag
+		ft.usrBlocklists = blocklists
+		ft.usrFlag = usr_flag
 	}
 
 	// lookup the whole fqdn, ex: a.b.c.tld
@@ -393,7 +395,7 @@ func (ft *FrozenTrie) lookupDomain(dn string) (bool, []string) {
 	if bvalue != nil {
 		// fmt.Printf("Return frm B-Cache : %s blacklist %s\n", blfname, FT.usr_bl)
 		blfname = strings.Split(bvalue.(string), "-")
-		found, retlist = Find_Lista_Listb(ft.usr_bl, blfname)
+		found, retlist = dupElems(ft.usrBlocklists, blfname)
 		return found, retlist
 	}
 	if fvalue != nil {
@@ -404,13 +406,13 @@ func (ft *FrozenTrie) lookupDomain(dn string) (bool, []string) {
 	var arr = []uint32{}
 	var tag = []string{}
 	var status bool
-	str_uint8, _ := TxtEncode(dn)
+	str_uint8, _ := encodeText(dn)
 	status, arr = ft.lookup(str_uint8)
 	if status && len(arr) > 0 {
 		tag = ft.FlagstoTag(arr)
 
 		//fmt.Printf("Return frm lookup and flagtotag : %d\n", len(tag))
-		found, retlist = Find_Lista_Listb(ft.usr_bl, tag)
+		found, retlist = dupElems(ft.usrBlocklists, tag)
 
 		ft.bcache.Set(dn, strings.Join(tag, "-"))
 		//fmt.Println("Add to B-Cache lenght : ",*FT.blen)
@@ -439,21 +441,21 @@ func (ft *FrozenTrie) CreateUrlEncodedflag(fl []string) string {
 		dataIndex1 := 0
 		h := 0
 		if len(res) >= 1 {
-			h = DEC16(res, 0)
+			h = dec16(res, 0)
 		}
 
 		mask := uint16(0)
-		if v, ok := MaskBottom[16]; ok && len(v) > 16-index && 16-index > 0 {
+		if v, ok := maskLo[16]; ok && len(v) > 16-index && 16-index > 0 {
 			mask = v[16-index]
 		}
 		//fmt.Println("Mask Bottom : ",uint(FT.data.MaskBottom[16][16 - index]))
-		dataIndex := CountSetBits(h&int(mask)) + 1
+		dataIndex := countSetBits(h&int(mask)) + 1
 
 		n := 0
 		if ((h >> (15 - index)) & 0x1) != 1 {
 			n = 0
 		} else {
-			n = DEC16(res, dataIndex)
+			n = dec16(res, dataIndex)
 		}
 
 		upsertData := (n != 0)
@@ -466,9 +468,9 @@ func (ft *FrozenTrie) CreateUrlEncodedflag(fl []string) string {
 			if upsertData {
 				dataIndex1 = dataIndex1 + 1
 			}
-			res = CHR16(h) + FlagSubstring(res, 1, dataIndex) + CHR16(n) + FlagSubstring(res, dataIndex1, 0)
+			res = chr16(h) + flagSubstr(res, 1, dataIndex) + chr16(n) + flagSubstr(res, dataIndex1, 0)
 		} else {
-			res = CHR16(h) + CHR16(n)
+			res = chr16(h) + chr16(n)
 		}
 
 		//fmt.Println("h : ",h)
@@ -486,11 +488,11 @@ func (ft *FrozenTrie) CreateUrlEncodedflag(fl []string) string {
 	return url.QueryEscape(b64.StdEncoding.EncodeToString([]byte(res)))
 }
 
-func (ft *FrozenTrie) Urlenc_to_flag(str string) []string {
+func (ft *FrozenTrie) UrlEncodedFlagstrToTags(str string) []string {
 	str, _ = url.QueryUnescape(str)
 	buf, _ := b64.StdEncoding.DecodeString(str)
 	str = string(buf)
-	return ft.FlagstoTag(Flag_to_uint(str))
+	return ft.FlagstoTag(flagstrToUint32(str))
 }
 
 func (ft *FrozenTrie) decode(stamp string, ver string) (tags []string, err error) {
@@ -545,7 +547,7 @@ func (ft *FrozenTrie) flagstotag(flags []uint16) ([]string, error) {
 
 	// read first 16 header bits from msb to lsb
 	// and capture indices of set bits in tagIndices
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		if (header << i) == 0 {
 			break
 		}
@@ -582,7 +584,7 @@ func (ft *FrozenTrie) flagstotag(flags []uint16) ([]string, error) {
 				// from the decimal value which is its
 				// blocklist-id, fetch its metadata
 				if pos >= len(ft.rflags) {
-					if Debug {
+					if debug {
 						fmt.Printf("trie: flagstotag: pos %d out of bounds in len(rflags) %d\n",
 							pos, len(ft.rflags))
 					}
@@ -617,7 +619,7 @@ func bytestouint(b []byte) []uint16 {
 func subdomains(target string) []string {
 	c := strings.Count(target, ".")
 	l := []string{}
-	for i := 0; i < c; i++ {
+	for range c {
 		s := strings.Index(target, ".") + 1
 		target = target[s:]
 		l = append(l, target)

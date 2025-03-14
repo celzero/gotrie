@@ -11,9 +11,9 @@ import (
 	"math"
 )
 
-type RankDirectory struct {
-	Directory   *BStr
-	Data        *BStr
+type rankdir struct {
+	dir         *binstr
+	data        *binstr
 	l1Size      int
 	l2Size      int
 	l1Bits      int
@@ -22,12 +22,12 @@ type RankDirectory struct {
 	numBits     int
 }
 
-func NewRankDir(rd, td *BStr, numBits int, l1Size int, l2Size int) *RankDirectory {
+func newRankDir(rd, td *binstr, numBits int, l1Size int, l2Size int) *rankdir {
 	l1Bits := int(math.Ceil(math.Log2(float64(numBits))))
 	l2Bits := int(math.Ceil(math.Log2(float64(l1Size))))
-	rdir := &RankDirectory{
-		Directory:   rd,
-		Data:        td,
+	rdir := &rankdir{
+		dir:         rd,
+		data:        td,
 		l1Size:      l1Size,
 		l2Size:      l2Size,
 		l1Bits:      l1Bits,
@@ -35,38 +35,38 @@ func NewRankDir(rd, td *BStr, numBits int, l1Size int, l2Size int) *RankDirector
 		sectionBits: (l1Size/l2Size-1)*l2Bits + l1Bits,
 		numBits:     numBits,
 	}
-	if Debug {
+	if debug {
 		rdir.display()
 	}
 	return rdir
 }
 
-func (RD *RankDirectory) display() {
-	fmt.Println("trie: td dir sz: ", RD.Directory.Size())
-	fmt.Println("trie: rd data sz: ", RD.Data.Size())
-	fmt.Println("trie: rd numBits: ", RD.numBits)
-	fmt.Println("trie: rd l1size: ", RD.l1Size)
-	fmt.Println("trie: rd l1bits: ", RD.l1Bits)
-	fmt.Println("trie: rd l2bits: ", RD.l2Bits)
+func (rdir *rankdir) display() {
+	fmt.Println("trie: td dir sz: ", rdir.dir.Size())
+	fmt.Println("trie: rd data sz: ", rdir.data.Size())
+	fmt.Println("trie: rd numBits: ", rdir.numBits)
+	fmt.Println("trie: rd l1size: ", rdir.l1Size)
+	fmt.Println("trie: rd l1bits: ", rdir.l1Bits)
+	fmt.Println("trie: rd l2bits: ", rdir.l2Bits)
 }
 
-func (rdir *RankDirectory) rank(_, x int) int {
+func (rdir *rankdir) rank(_, x int) int {
 	var temp uint32
 	rank := -1
 	sectionPos := 0
 	if x >= rdir.l2Size {
 		sectionPos = (x / rdir.l2Size) * rdir.l1Bits
-		temp = rdir.Directory.get(sectionPos-rdir.l1Bits, rdir.l1Bits)
+		temp = rdir.dir.get(sectionPos-rdir.l1Bits, rdir.l1Bits)
 		rank = int(temp)
 		x = x % rdir.l2Size
 	}
 	var ans = 0
 	if x > 0 {
-		ans = rdir.Data.pos0(rank+1, x)
+		ans = rdir.data.pos0(rank+1, x)
 	} else {
 		ans = rank
 	}
-	if Debug {
+	if debug {
 		fmt.Printf("trie: ans: %d %d:r, x: %d %d:s %d:l1 %t:ifcheck\n",
 			ans, temp, x, sectionPos, rdir.l1Bits, x >= rdir.l2Size)
 	}
