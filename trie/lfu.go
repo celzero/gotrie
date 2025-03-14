@@ -13,118 +13,101 @@ import (
 	"sync"
 )
 
-type Eviction struct {
-	Key   string
-	Value interface{}
-}
-
-type lfu struct {
-	// If len > UpperBound, cache will automatically evict
-	// down to LowerBound.  If either value is 0, this behavior
+type lfu[T any] struct {
+	mu     *sync.Mutex
+	values map[string]*cacheEntry[T]
+	freqs  *list.List
+	// If len > himark, cache will automatically evict
+	// down to lomark.  If either value is 0, this behavior
 	// is disabled.
-	UpperBound      int
-	LowerBound      int
-	values          map[string]*cacheEntry
-	freqs           *list.List
-	len             int
-	lock            *sync.Mutex
-	EvictionChannel chan<- Eviction
+	himark int
+	lomark int
+	len    int
 }
 
-type cacheEntry struct {
+type cacheEntry[T any] struct {
 	key      string
-	value    interface{}
+	value    T
 	freqNode *list.Element
 }
 
-type listEntry struct {
-	entries map[*cacheEntry]byte
+type listEntry[T any] struct {
+	entries map[*cacheEntry[T]]byte
 	freq    int
 }
 
-func newLfuCache(hi, lo int) *lfu {
-	c := new(lfu)
-	c.values = make(map[string]*cacheEntry)
+func newLfuCache[T any](hi, lo int) *lfu[T] {
+	c := new(lfu[T])
+	c.values = make(map[string]*cacheEntry[T])
 	c.freqs = list.New()
-	c.lock = new(sync.Mutex)
-	c.UpperBound = hi
-	c.LowerBound = lo
+	c.mu = new(sync.Mutex)
+	c.himark = hi
+	c.lomark = lo
 	return c
 }
 
-func (c *lfu) Get(key string) interface{} {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+func (c *lfu[T]) Get(key string) (zz T) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if e, ok := c.values[key]; ok {
-		c.increment(e)
+		c.tickFreqLocked(e)
 		return e.value
 	}
-	return nil
+	return
 }
 
-func (c *lfu) Set(key string, value interface{}) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+func (c *lfu[T]) Set(key string, value T) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if e, ok := c.values[key]; ok {
 		// value already exists for key.  overwrite
 		e.value = value
-		c.increment(e)
+		c.tickFreqLocked(e)
 	} else {
 		// value doesn't exist.  insert
-		e := new(cacheEntry)
+		e := new(cacheEntry[T])
 		e.key = key
 		e.value = value
 		c.values[key] = e
-		c.increment(e)
+		c.tickFreqLocked(e)
 		c.len++
 		// bounds mgmt
-		if c.UpperBound > 0 && c.LowerBound > 0 {
-			if c.len > c.UpperBound {
-				c.evict(c.len - c.LowerBound)
+		if c.himark > 0 && c.lomark > 0 {
+			if c.len > c.himark {
+				c.evictLocked(c.len - c.lomark)
 			}
 		}
 	}
 }
 
-func (c *lfu) Len() int {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+func (c *lfu[T]) Len() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	return c.len
 }
 
-func (c *lfu) Evict(count int) int {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	return c.evict(count)
-}
-
-func (c *lfu) evict(count int) int {
-	// No lock here so it can be called
-	// from within the lock (during Set)
-	var evicted int
-	for i := 0; i < count; {
-		if place := c.freqs.Front(); place != nil {
-			for entry, _ := range place.Value.(*listEntry).entries {
-				if i < count {
-					if c.EvictionChannel != nil {
-						c.EvictionChannel <- Eviction{
-							Key:   entry.key,
-							Value: entry.value,
-						}
-					}
-					delete(c.values, entry.key)
-					c.remEntry(place, entry)
-					evicted++
-					c.len--
-					i++
-				}
-			}
+func (c *lfu[T]) evictLocked(count int) (evicted int) {
+	for i := range count {
+		place := c.freqs.Front()
+		if place == nil {
+			break
 		}
+		for entry, _ := range place.Value.(*listEntry[T]).entries {
+			if i > count {
+				continue
+			}
+			delete(c.values, entry.key)
+			c.removedLocked(place, entry)
+			evicted++
+			c.len--
+			i++
+		}
+
 	}
-	return evicted
+	return
 }
 
-func (c *lfu) increment(e *cacheEntry) {
+func (c *lfu[T]) tickFreqLocked(e *cacheEntry[T]) {
 	currentPlace := e.freqNode
 	var nextFreq int
 	var nextPlace *list.Element
@@ -134,15 +117,15 @@ func (c *lfu) increment(e *cacheEntry) {
 		nextPlace = c.freqs.Front()
 	} else {
 		// move up
-		nextFreq = currentPlace.Value.(*listEntry).freq + 1
+		nextFreq = currentPlace.Value.(*listEntry[T]).freq + 1
 		nextPlace = currentPlace.Next()
 	}
 
-	if nextPlace == nil || nextPlace.Value.(*listEntry).freq != nextFreq {
+	if nextPlace == nil || nextPlace.Value.(*listEntry[T]).freq != nextFreq {
 		// create a new list entry
-		li := new(listEntry)
+		li := new(listEntry[T])
 		li.freq = nextFreq
-		li.entries = make(map[*cacheEntry]byte)
+		li.entries = make(map[*cacheEntry[T]]byte)
 		if currentPlace != nil {
 			nextPlace = c.freqs.InsertAfter(li, currentPlace)
 		} else {
@@ -154,15 +137,15 @@ func (c *lfu) increment(e *cacheEntry) {
 	}
 
 	e.freqNode = nextPlace
-	nextPlace.Value.(*listEntry).entries[e] = 1
+	nextPlace.Value.(*listEntry[T]).entries[e] = 1
 	if currentPlace != nil {
 		// remove from current position
-		c.remEntry(currentPlace, e)
+		c.removedLocked(currentPlace, e)
 	}
 }
 
-func (c *lfu) remEntry(place *list.Element, entry *cacheEntry) {
-	entries := place.Value.(*listEntry).entries
+func (c *lfu[T]) removedLocked(place *list.Element, entry *cacheEntry[T]) {
+	entries := place.Value.(*listEntry[T]).entries
 	delete(entries, entry)
 	if len(entries) == 0 {
 		c.freqs.Remove(place)

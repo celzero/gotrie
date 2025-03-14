@@ -31,8 +31,8 @@ type FrozenTrie struct {
 	rflags map[int]string
 	fdata  map[string]any
 
-	bcache *lfu
-	fcache *lfu
+	bcache *lfu[string]
+	fcache *lfu[string]
 
 	usrFlag       string
 	usrBlocklists []string
@@ -50,8 +50,8 @@ func NewFrozenTrie(td *binstr, rdir *rankdir, nodeCount int, tagfile string) *Fr
 		extraBit:      extraBit,
 		bitslen:       9 + extraBit, //((config.base32) ? 6 : 9) + this.extraBit;
 		letterStart:   nodeCount*2 + 1,
-		bcache:        newLfuCache(cachesz, cacheszlo),
-		fcache:        newLfuCache(cachesz, cacheszlo),
+		bcache:        newLfuCache[string](cachesz, cacheszlo),
+		fcache:        newLfuCache[string](cachesz, cacheszlo),
 		rflags:        make(map[int]string),
 		fdata:         make(map[string]any),
 		usrFlag:       "",
@@ -385,20 +385,19 @@ func (ft *FrozenTrie) DNlookup(dn string, usr_flag string) (bool, []string) {
 }
 
 func (ft *FrozenTrie) lookupDomain(dn string) (bool, []string) {
-
 	dn = strings.TrimSpace(dn)
 	bvalue := ft.bcache.Get(dn)
 	fvalue := ft.fcache.Get(dn)
 	var blfname []string
 	var retlist []string
 	var found = false
-	if bvalue != nil {
+	if len(bvalue) > 0 {
 		// fmt.Printf("Return frm B-Cache : %s blacklist %s\n", blfname, FT.usr_bl)
-		blfname = strings.Split(bvalue.(string), "-")
+		blfname = strings.Split(bvalue, "-")
 		found, retlist = dupElems(ft.usrBlocklists, blfname)
 		return found, retlist
 	}
-	if fvalue != nil {
+	if len(fvalue) > 0 {
 		//fmt.Println("Return frm F-Cache : ")
 		return found, blfname
 	}
