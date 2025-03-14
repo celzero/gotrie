@@ -1,3 +1,9 @@
+// Copyright (c) 2025 RethinkDNS and its authors.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 package main
 
 import (
@@ -5,38 +11,34 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
+	"sync"
 
 	"github.com/celzero/gotrie/trie"
 )
 
-//import "time"
-//import "os"
-//import "bufio"
-//import "strings"
-
 func main() {
-	mychannel := make(chan bool)
-	go loadbuild(mychannel)
-	go loadbuild(mychannel)
-	go loadbuild(mychannel)
-	go loadbuild(mychannel)
-	go loadbuild(mychannel)
-	<-mychannel
-	<-mychannel
-	<-mychannel
-	<-mychannel
-	<-mychannel
+	loads := 1
+	wg := new(sync.WaitGroup)
+	wg.Add(loads)
+	for range loads {
+		go loadbuild(wg)
+	}
+	wg.Wait()
 }
 
-func loadbuild(mychannel chan bool) {
-	FT, err := trie.Build("./td", "./rank", "./basicconfig", "./blocklists")
+const usemmap = false
+
+func loadbuild(wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	FT, err := trie.Build("./td", "./rank", "./basicconfig", "./blocklists", usemmap)
 	if err == nil {
 		//[33216 32768 8192 256 4]
 		//6IeA6ICA4oCAxIAE
 		res := []string{"AMI", "CQT", "EOK", "MTF"}
 		usr_flag := FT.CreateUrlEncodedflag(res)
 		fmt.Println(usr_flag)
-		fmt.Println(FT.Urlenc_to_flag("w4DEgAQ="))
+		fmt.Println(FT.UrlEncodedFlagstrToTags("w4DEgAQ="))
 
 		fmt.Print("1: v1<>google.com (ex:false) ")
 		fmt.Println(FT.DNlookup("google.com", "6IeA6ICA4oCAxIAE"))
@@ -82,7 +84,7 @@ func loadbuild(mychannel chan bool) {
 		       fmt.Printf("Time Diff %s\n",elapsed)
 		   }*/
 	} else {
-		fmt.Println("Error at trie Build")
+		fmt.Println("trie: build err", err)
 	}
 
 	/*err,FT := trie.Build()
@@ -104,8 +106,8 @@ func loadbuild(mychannel chan bool) {
 	if err := pprof.WriteHeapProfile(f); err != nil {
 		fmt.Println("could not write memory profile: ", err)
 	}
-	mychannel <- true
 }
+
 func PrintMemUsage() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
