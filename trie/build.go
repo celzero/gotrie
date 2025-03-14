@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"syscall"
 	"unsafe"
 )
@@ -51,7 +52,8 @@ func Build(tdpath, rdpath, bcpath, ftpath string, rk ReadKind) (ftrie *FrozenTri
 	rdmd5hex := md5hex(rd8)
 	tdmd5, _ := bconfig["tdmd5"].(string)
 	rdmd5, _ := bconfig["rdmd5"].(string)
-	hstatus := fmt.Sprintf("md5 mismatch: %s <-> %s | %s <-> %s", tdmd5hex, tdmd5, rdmd5hex, rdmd5)
+	hstatus := fmt.Sprintf("trie: md5 mismatch: %s <=> %s | %s <=> %s",
+		tdmd5hex, tdmd5, rdmd5hex, rdmd5)
 
 	if tdmd5hex != tdmd5 || rdmd5hex != rdmd5 {
 		err = errors.New(hstatus)
@@ -63,36 +65,52 @@ func Build(tdpath, rdpath, bcpath, ftpath string, rk ReadKind) (ftrie *FrozenTri
 	rdir := newRankDir(rdb, tdb, nodecount*2+1, L1, L2)
 	ftrie = NewFrozenTrie(tdb, rdir, nodecount, ftpath)
 
+	runtime.AddCleanup[FrozenTrie, []*[]byte](ftrie, func(arr []*[]byte) {
+		for _, b := range arr {
+			err := syscall.Munmap(*b)
+			fmt.Println("trie: munmap! err? ", err)
+		}
+
+	}, []*[]byte{td8, rd8})
+
 	return
 }
 
 // mmapBinary mmaps the binary file and returns the uint16 and byte slices
-func mmapBinary(path string) (*[]uint16, *[]byte, error) {
+func mmapBinary(path string) (u16 *[]uint16, u8 *[]byte, err error) {
 	if path == "" {
-		return nil, nil, errors.New("trie: empty path")
+		err = errors.New("trie: empty path")
+		return
 	}
 
 	if !lilbo(false) {
-		return nil, nil, errors.New("trie: mmap on little endian only")
+		err = errors.New("trie: mmap on little endian only")
+		return
 	}
 
 	// Open the file
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, nil, err
+		return
 	}
 	defer file.Close()
 
 	// Get the file size
 	fi, err := file.Stat()
 	if err != nil {
-		return nil, nil, err
+		return
 	}
+	fd := int(file.Fd())
 	size := fi.Size()
 
-	data, err := syscall.Mmap(int(file.Fd()), 0, int(size), syscall.PROT_READ, syscall.MAP_SHARED)
+	if int64(int(size)) != size {
+		err = errors.New("trie: file too large")
+		return
+	}
+
+	data, err := syscall.Mmap(fd, 0, int(size), syscall.PROT_READ, syscall.MAP_PRIVATE)
 	if err != nil {
-		return nil, nil, err
+		return
 	}
 
 	fmt.Println("trie: mmaped", path, "size", len(data))
@@ -100,7 +118,7 @@ func mmapBinary(path string) (*[]uint16, *[]byte, error) {
 	return bytesToUint16(&data), &data, nil
 }
 
-func readBinary(path string, rk ReadKind) (*[]uint16, *[]byte, error) {
+func readBinary(path string, rk ReadKind) (u16 *[]uint16, u8 *[]byte, err error) {
 	isLittleEndian := lilbo(false)
 	if rk == Fmmap && isLittleEndian {
 		return mmapBinary(path)
@@ -108,8 +126,8 @@ func readBinary(path string, rk ReadKind) (*[]uint16, *[]byte, error) {
 
 	content, err := os.ReadFile(path)
 	if err != nil {
-		fmt.Println("trie: err read file : build.go -> read_file_u16()")
-		return nil, nil, err
+		err = fmt.Errorf("trie: err read file: %v", err)
+		return
 	}
 	sz := len(content)
 
@@ -124,7 +142,8 @@ func readBinary(path string, rk ReadKind) (*[]uint16, *[]byte, error) {
 	tmp16 := make([]uint16, sz/2)
 	err = binary.Read(r, binary.LittleEndian, &tmp16)
 	if err != nil {
-		return nil, nil, fmt.Errorf("trie: err: %v", err)
+		err = fmt.Errorf("trie: err: %v", err)
+		return
 	}
 	return &tmp16, &content, nil
 }

@@ -61,6 +61,10 @@ func NewFrozenTrie(td *binstr, rdir *rankdir, nodeCount int, tagfile string) *Fr
 	return ft
 }
 
+func (f *FrozenTrie) Dispose() {
+	// todo: clear fcache and bcache
+}
+
 func (f *FrozenTrie) getNodeByIndex(index int) *FrozenTrieNode {
 	return NewFrozenTrieNode(f, index)
 }
@@ -444,7 +448,7 @@ func (ft *FrozenTrie) CreateUrlEncodedflag(fl []string) string {
 		}
 
 		mask := uint16(0)
-		if v, ok := maskLo[16]; ok && len(v) > 16-index && 16-index > 0 {
+		if v, ok := MaskLo[16]; ok && len(v) > 16-index && 16-index > 0 {
 			mask = v[16-index]
 		}
 		//fmt.Println("Mask Bottom : ",uint(FT.data.MaskBottom[16][16 - index]))
