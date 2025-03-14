@@ -65,13 +65,15 @@ func Build(tdpath, rdpath, bcpath, ftpath string, rk ReadKind) (ftrie *FrozenTri
 	rdir := newRankDir(rdb, tdb, nodecount*2+1, L1, L2)
 	ftrie = NewFrozenTrie(tdb, rdir, nodecount, ftpath)
 
-	runtime.AddCleanup[FrozenTrie, []*[]byte](ftrie, func(arr []*[]byte) {
-		for _, b := range arr {
-			err := syscall.Munmap(*b)
-			fmt.Println("trie: munmap! err? ", err)
-		}
+	if rk == Fmmap {
+		runtime.AddCleanup(ftrie, func(arr []*[]byte) {
+			for _, b := range arr {
+				err := syscall.Munmap(*b)
+				fmt.Println("trie: munmap! err? ", err)
+			}
 
-	}, []*[]byte{td8, rd8})
+		}, []*[]byte{td8, rd8})
+	}
 
 	return
 }
