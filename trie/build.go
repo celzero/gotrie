@@ -15,6 +15,7 @@ import (
 	"os"
 	"runtime"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -30,13 +31,24 @@ type ReadKind bool
 const Fmmap ReadKind = true
 const Ffull ReadKind = false
 
+func (rk ReadKind) String() string {
+	if rk {
+		return "mmap"
+	}
+	return "full"
+}
+
 func Build(tdpath, rdpath, bcpath, ftpath string, rk ReadKind) (ftrie *FrozenTrie, err error) {
+	tdstart := time.Now()
 	td16, td8, err := readBinary(tdpath, rk)
+	tdelapsed := time.Since(tdstart).Milliseconds()
 	if err != nil {
 		return
 	}
 
+	rdstart := time.Now()
 	rd16, rd8, err := readBinary(rdpath, rk)
+	rdelapsed := time.Since(rdstart).Milliseconds()
 	if err != nil {
 		return
 	}
@@ -74,6 +86,8 @@ func Build(tdpath, rdpath, bcpath, ftpath string, rk ReadKind) (ftrie *FrozenTri
 
 		}, []*[]byte{td8, rd8})
 	}
+
+	fmt.Println("trie: td loadtime: ", tdelapsed, "rd loadtime: ", rdelapsed, "rk: ", rk)
 
 	return
 }
