@@ -65,7 +65,7 @@ func loadbuild(wg *sync.WaitGroup) {
 		fmt.Print("8: v2<>www.aws.amazon.com (ex:true) ")
 		fmt.Println(FT.DNlookup("www.aws.amazon.com", n)) // true
 
-		fmt.Print("8: v2<>amazon.com (ex:false) ")
+		fmt.Print("9: v2<>amazon.com (ex:false) ")
 		fmt.Println(FT.DNlookup("amazon.com", "1:AIAAwA==")) // false
 
 		PrintMemUsage()
