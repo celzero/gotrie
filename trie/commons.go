@@ -125,7 +125,7 @@ func dupElems(list1 []string, list2 []string) (bool, []string) {
 	found := false
 	for _, value := range list1 {
 		// FIXME: FT.usr_bl can contain empty strings and that
-		// shoudln't be matched at all. But then again commons
+		// shouldn't be matched at all. But then again commons
 		// isn't the place to account for such edge-cases.
 		if len(value) <= 0 {
 			continue
